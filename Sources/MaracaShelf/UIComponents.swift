@@ -23,8 +23,11 @@ final class RoundIconButton: NSButton {
     }
 
     // Kept for callers that think in terms of "rotate the chevron"; we just swap the glyph.
+    // Points in the direction the content will move once clicked — up while expanded
+    // (clicking collapses it upward), down while collapsed (clicking expands it downward)
+    // — not the direction it just came from.
     func rotate(to radians: CGFloat) {
-        setSymbol(radians == 0 ? "chevron.down" : "chevron.up")
+        setSymbol(radians == 0 ? "chevron.up" : "chevron.down")
     }
 
     // The shelf panel never becomes key (see ShelfPanel), so buttons must opt into

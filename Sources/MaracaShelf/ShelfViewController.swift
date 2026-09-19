@@ -24,7 +24,7 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
     private var isCollapsed = false
 
     private let closeButton = RoundIconButton(symbol: "xmark", tint: .white)
-    private let collapseButton = RoundIconButton(symbol: "chevron.down", tint: .white)
+    private let collapseButton = RoundIconButton(symbol: "chevron.up", tint: .white)
     private let airDropButton = RoundIconButton(symbol: "square.and.arrow.up", tint: .white)
     private var airDropGlass: NSView!
     private var activeSharingService: NSSharingService?
