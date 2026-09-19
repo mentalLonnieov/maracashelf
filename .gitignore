@@ -1,0 +1,7 @@
+# Build artifacts
+.build/
+.swiftpm/
+/MaracaShelf.app/
+
+# macOS
+.DS_Store
