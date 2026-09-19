@@ -14,6 +14,21 @@ final class RoundIconButton: NSButton {
         setSymbol(symbol)
     }
 
+    /// For a fixed, already-colored system icon (the real AirDrop glyph from
+    /// `NSSharingService`) rather than an SF Symbol. `contentTintColor` is left unset since
+    /// it only affects template images and this one isn't — see `ShelfViewController` for
+    /// why forcing it into one didn't work out. It stays full-color regardless of the
+    /// system's monochrome icon appearance mode (macOS 26/27), which is the accepted
+    /// trade-off for actually being recognizable as AirDrop.
+    init(image: NSImage) {
+        self.pointSize = 12
+        super.init(frame: .zero)
+        isBordered = false
+        title = ""
+        self.image = image
+        imageScaling = .scaleProportionallyDown
+    }
+
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func setSymbol(_ name: String) {

@@ -40,7 +40,20 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
 
     private let closeButton = RoundIconButton(symbol: "xmark", tint: .white)
     private let collapseButton = RoundIconButton(symbol: "chevron.up", tint: .white)
-    private let airDropButton = RoundIconButton(symbol: "square.and.arrow.up", tint: .white)
+    // The real AirDrop glyph (from the sharing service itself, not an SF Symbol — there
+    // isn't one for AirDrop) so the button reads as "AirDrop" at a glance rather than a
+    // generic share icon. Two substitutes were tried and rejected first: forcing the real
+    // asset into a tintable template image collapsed it into a solid blob (it's a full
+    // app-icon-style bitmap with no alpha separating the rings from the background), and a
+    // hand-drawn replacement glyph looked reasonable in isolation but muddy at actual button
+    // size. Staying full-color and not reacting to the system's monochrome icon appearance
+    // mode (macOS 26/27) is the accepted trade-off for actually being recognizable. Falls
+    // back to the generic share glyph on the off chance the service is unavailable.
+    private let airDropButton = RoundIconButton(
+        image: NSSharingService(named: .sendViaAirDrop)?.image
+            ?? NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: nil)
+            ?? NSImage()
+    )
     private var airDropGlass: NSView!
     private var activeSharingService: NSSharingService?
     private let dropHintLabel = NSTextField(labelWithString: L("drop_hint"))

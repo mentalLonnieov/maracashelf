@@ -235,7 +235,18 @@ of being fixed forever.
   appear animation (unlike `orderOut()`, whose `animationBehavior = .utilityWindow` already
   includes a fade) — so both directions are done explicitly instead of relying on AppKit's
   inconsistent defaults.
-- A centered AirDrop button in the header (expanded state only) is disabled by default and
+- A centered AirDrop button in the header (expanded state only) uses the real AirDrop glyph
+  — `NSSharingService(named: .sendViaAirDrop)?.image` — instead of a generic share icon, so
+  it reads as "AirDrop" at a glance. Two substitutes were tried and rejected: forcing that
+  real asset into a tintable template image collapsed it into a solid blob (it's a full
+  app-icon-style bitmap — an opaque rounded-square backdrop with the rings distinguished
+  only by a soft gradient, no alpha separating them from the background — and template
+  rendering only looks at alpha, not color); and a hand-drawn replacement (two concentric
+  `NSBezierPath` arcs with butt line caps plus a dot, approximating AirDrop's notched-ring
+  look) read fine enlarged but turned muddy at the actual ~18pt button size once tried for
+  real. So the button keeps the real, full-color glyph and simply accepts that it won't
+  react to the system's monochrome icon appearance mode (macOS 26/27) — recognizable beats
+  adaptive here. It's disabled by default and
   enables as soon as at least one file is selected in the grid (`NSCollectionView`
   `didSelectItemsAt`/`didDeselectItemsAt`). Tapping it calls `NSSharingService(named:
   .sendViaAirDrop)` with every selected file, skipping the intermediate picker (it opens
