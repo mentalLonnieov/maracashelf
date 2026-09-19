@@ -47,3 +47,7 @@
 "storage.days.few" = "%d дня";
 "storage.days.many" = "%d дней";
 "storage.days.other" = "%d дня";
+"settings.shelf_size_title" = "Размер полки";
+"settings.shelf_size_subtitle" = "Сколько места занимает развёрнутая полка. Применится при следующем открытии.";
+"settings.shelf_size_standard" = "Обычный";
+"settings.shelf_size_compact" = "Компактный";

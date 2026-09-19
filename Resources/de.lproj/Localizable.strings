@@ -47,3 +47,7 @@
 "storage.days.few" = "%d Tage";
 "storage.days.many" = "%d Tage";
 "storage.days.other" = "%d Tage";
+"settings.shelf_size_title" = "Ablagegröße";
+"settings.shelf_size_subtitle" = "Wie viel Platz die geöffnete Ablage einnimmt. Wirkt sich erst beim nächsten Öffnen aus.";
+"settings.shelf_size_standard" = "Standard";
+"settings.shelf_size_compact" = "Kompakt";

@@ -17,7 +17,7 @@ final class ShelfWindowController: NSObject, ShelfViewControllerDelegate {
         viewController = controller
 
         let width = controller.panelWidth
-        let height: CGFloat = 320
+        let height = controller.expandedHeight
 
         let panel = ShelfPanel(contentRect: NSRect(x: 0, y: 0, width: width, height: height))
         // contentView, not contentViewController: NSWindow ties a contentViewController's

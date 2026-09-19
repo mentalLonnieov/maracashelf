@@ -87,7 +87,8 @@ extra dynamic depth effect.
 Menu icon → "Settings…" opens a window styled the same way as the shelf — a borderless
 card with the same Liquid Glass (`GlassChrome`) and its own "×" button instead of the
 system one — but unlike the shelf it does become a key window (it's an ordinary settings
-window, not a drag & drop overlay). It has two sections under an overall "Settings" title:
+window, not a drag & drop overlay; see `KeyableBorderlessWindow`). It has four sections
+under an overall "Settings" title:
 
 - **Shake Sensitivity** — a slider from "needs a strong shake" to "a light shake is
   enough". The value persists across launches (`UserDefaults`, key `ShakeSensitivity`) and
@@ -95,6 +96,10 @@ window, not a drag & drop overlay). It has two sections under an overall "Settin
   check (see `ShakeSensitivity.swift`). The default value (50%) matches the detector's
   original hardcoded thresholds.
 - **Interface Language** — see below.
+- **Storage** — the archive's auto-delete window; see "Archive" above.
+- **Shelf Size** — "Default" (3-column grid) or "Compact" (2 columns, roughly a 2×2 view
+  before scrolling); see "How it works" below. Unlike sensitivity/language, this only takes
+  effect for the *next* shelf you open — an already-open one keeps its size.
 
 (The window's own title and each section header share one label style —
 `SettingsWindowController.titleLabel`, i.e. "Shake Sensitivity", used to be styled as the
@@ -310,11 +315,19 @@ of being fixed forever.
   `allowsImplicitAnimation = true` (the standard AppKit way to animate Auto Layout, rather
   than `CALayer.transform`/`anchorPoint` tricks, which would be risky to combine with the
   already fragile window-animation synchronization).
-- The preview grid is 3 columns (`panelWidth = 270`, 74×84 cells, 12pt gaps) instead of the
-  original two with a big gap down the middle: `NSCollectionViewFlowLayout` stretches
-  leftover space between columns once it's fit as many as it can, so the width and cell
-  size were tuned so 3 columns fill the panel exactly, with no slack left over (verified by
-  dumping the actual cell frames).
+- The preview grid is 3 columns by default (`panelWidth = 270`, 74×84 cells, 12pt gaps)
+  instead of the original two with a big gap down the middle: `NSCollectionViewFlowLayout`
+  stretches leftover space between columns once it's fit as many as it can, so the width and
+  cell size were tuned so the columns fill the panel exactly, with no slack left over
+  (verified by dumping the actual cell frames). That stretch is why the width formula in
+  `ShelfSizePreference` uses a 12pt gap, not the nominal 10pt `minimumInteritemSpacing`
+  configured on the layout — `columns*74 + (columns-1)*12 + 24` reproduces the original 270
+  exactly for 3 columns, and gives 184 for the "Compact" 2-column size (Settings → Shelf
+  Size). `panelWidth`/`expandedHeight` are read once when a `ShelfViewController` is created
+  and stay fixed for that shelf's lifetime — changing the setting only affects shelves
+  opened afterward, since resizing one already open (mid-drag, potentially) would be
+  jarring. The collapsed height doesn't vary with this setting, since the collapsed
+  content's actual minimum doesn't depend on the expanded grid's column count.
 - Verified via the private SkyLight API (`CGSCopySpacesForWindows`) that the panel really is
   registered with the WindowServer as belonging to every current Space at once, not just the
   one it was opened on.

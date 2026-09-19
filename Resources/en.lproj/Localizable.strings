@@ -47,3 +47,7 @@
 "storage.days.few" = "%d days";
 "storage.days.many" = "%d days";
 "storage.days.other" = "%d days";
+"settings.shelf_size_title" = "Shelf Size";
+"settings.shelf_size_subtitle" = "How much room the expanded shelf takes up. Applies the next time you open it.";
+"settings.shelf_size_standard" = "Default";
+"settings.shelf_size_compact" = "Compact";

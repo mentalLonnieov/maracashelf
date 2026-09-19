@@ -47,3 +47,7 @@
 "storage.days.few" = "%d дні";
 "storage.days.many" = "%d днів";
 "storage.days.other" = "%d дня";
+"settings.shelf_size_title" = "Розмір полиці";
+"settings.shelf_size_subtitle" = "Скільки місця займає розгорнута полиця. Застосується наступного разу.";
+"settings.shelf_size_standard" = "Звичайний";
+"settings.shelf_size_compact" = "Компактний";

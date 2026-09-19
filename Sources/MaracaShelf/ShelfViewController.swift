@@ -27,12 +27,15 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
     // Auto Layout's real minimum for the collapsed content is measured empirically (see
     // README) — asking for less makes the window animate toward an impossible size and get
     // yanked to the real minimum the instant the animation settles, which looks like a
-    // glitch. Grew from 100 to fit the collapsed preview row of thumbnails.
+    // glitch. Grew from 100 to fit the collapsed preview row of thumbnails. Independent of
+    // ShelfSizePreference — the collapsed content (buttons, preview row, count pill) is
+    // the same regardless of how many grid columns the expanded state uses.
     private let collapsedHeight: CGFloat = 132
-    private let expandedHeight: CGFloat = 320
-    // Wide enough for 3 columns (74pt items + 10pt gaps + 12pt insets) instead of 2 with a
-    // big gap down the middle.
-    let panelWidth: CGFloat = 270
+    // Both read once at creation from the user's chosen size (Settings → Shelf Size) —
+    // resizing an already-open shelf isn't attempted, so this shelf keeps whatever size it
+    // started with even if the setting changes while it's open.
+    let expandedHeight: CGFloat = ShelfSizePreference.value.expandedHeight
+    let panelWidth: CGFloat = ShelfSizePreference.value.panelWidth
     private var isCollapsed = false
 
     private let closeButton = RoundIconButton(symbol: "xmark", tint: .white)

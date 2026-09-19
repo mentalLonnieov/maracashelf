@@ -47,3 +47,7 @@
 "storage.days.few" = "%d dny";
 "storage.days.many" = "%d dní";
 "storage.days.other" = "%d dní";
+"settings.shelf_size_title" = "Velikost poličky";
+"settings.shelf_size_subtitle" = "Kolik místa zabírá rozbalená polička. Projeví se při příštím otevření.";
+"settings.shelf_size_standard" = "Výchozí";
+"settings.shelf_size_compact" = "Kompaktní";

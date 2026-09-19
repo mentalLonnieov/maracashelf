@@ -47,3 +47,7 @@
 "storage.days.few" = "%d dni";
 "storage.days.many" = "%d dni";
 "storage.days.other" = "%d dni";
+"settings.shelf_size_title" = "Rozmiar półki";
+"settings.shelf_size_subtitle" = "Ile miejsca zajmuje rozwinięta półka. Zacznie obowiązywać przy następnym otwarciu.";
+"settings.shelf_size_standard" = "Domyślny";
+"settings.shelf_size_compact" = "Kompaktowy";

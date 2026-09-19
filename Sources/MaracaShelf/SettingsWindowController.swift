@@ -31,12 +31,16 @@ final class SettingsWindowController: NSWindowController {
     private let storageReadoutLabel = NSTextField(labelWithString: "")
     private let clearArchiveButton = PillButton(title: "")
 
+    private let shelfSizeTitleLabel = NSTextField(labelWithString: "")
+    private let shelfSizeSubtitleLabel = NSTextField(wrappingLabelWithString: "")
+    private let shelfSizeControl = NSSegmentedControl(labels: ["", ""], trackingMode: .selectOne, target: nil, action: nil)
+
     /// Index 0 is always "System" (nil override); the rest mirror `AppLanguage.allCases`.
     private let languageOptions: [AppLanguage?] = [nil] + AppLanguage.allCases
 
     convenience init() {
         let window = KeyableBorderlessWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 360, height: 474),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 520),
             styleMask: [.borderless, .resizable],
             backing: .buffered,
             defer: false
@@ -152,10 +156,28 @@ final class SettingsWindowController: NSWindowController {
         let divider2 = NSBox()
         divider2.boxType = .separator
 
+        shelfSizeTitleLabel.font = .systemFont(ofSize: 11, weight: .semibold)
+        shelfSizeTitleLabel.textColor = .white.withAlphaComponent(0.65)
+
+        shelfSizeSubtitleLabel.font = .systemFont(ofSize: 12)
+        shelfSizeSubtitleLabel.textColor = .white.withAlphaComponent(0.65)
+        shelfSizeSubtitleLabel.alignment = .center
+
+        // Forced dark, like languagePopUp — a native control's default appearance would
+        // otherwise follow the system's own light/dark mode instead of this permanently
+        // dark glass card, leaving its text unreadable in Light Mode.
+        shelfSizeControl.appearance = NSAppearance(named: .darkAqua)
+        shelfSizeControl.target = self
+        shelfSizeControl.action = #selector(shelfSizeChanged)
+
+        let divider3 = NSBox()
+        divider3.boxType = .separator
+
         let stack = NSStackView(views: [
             titleLabel, subtitleLabel, slider, endpointsRow, readoutLabel, resetGlass,
             divider, languageTitleLabel, languagePopUp,
             divider2, storageTitleLabel, storageSubtitleLabel, storageSlider, storageReadoutLabel, clearArchiveGlass,
+            divider3, shelfSizeTitleLabel, shelfSizeSubtitleLabel, shelfSizeControl,
         ])
         stack.orientation = .vertical
         stack.alignment = .centerX
@@ -172,6 +194,9 @@ final class SettingsWindowController: NSWindowController {
         stack.setCustomSpacing(6, after: divider2)
         stack.setCustomSpacing(16, after: storageSubtitleLabel)
         stack.setCustomSpacing(4, after: storageSlider)
+        stack.setCustomSpacing(18, after: clearArchiveGlass)
+        stack.setCustomSpacing(6, after: divider3)
+        stack.setCustomSpacing(16, after: shelfSizeSubtitleLabel)
 
         chromeContent.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -195,6 +220,8 @@ final class SettingsWindowController: NSWindowController {
             divider2.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
             storageSubtitleLabel.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
             storageSlider.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            divider3.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            shelfSizeSubtitleLabel.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
         ])
     }
 
@@ -220,6 +247,10 @@ final class SettingsWindowController: NSWindowController {
     @objc private func storageSliderChanged() {
         ArchiveRetentionSettings.days = Int(storageSlider.doubleValue.rounded())
         updateStorageReadout()
+    }
+
+    @objc private func shelfSizeChanged() {
+        ShelfSizePreference.value = shelfSizeControl.selectedSegment == 0 ? .standard : .compact
     }
 
     @objc private func clearArchiveTapped() {
@@ -258,6 +289,12 @@ final class SettingsWindowController: NSWindowController {
         storageSubtitleLabel.stringValue = L("settings.storage_subtitle")
         clearArchiveButton.setTitle(L("settings.storage_clear_now"))
         updateStorageReadout()
+
+        shelfSizeTitleLabel.stringValue = L("settings.shelf_size_title")
+        shelfSizeSubtitleLabel.stringValue = L("settings.shelf_size_subtitle")
+        shelfSizeControl.setLabel(L("settings.shelf_size_standard"), forSegment: 0)
+        shelfSizeControl.setLabel(L("settings.shelf_size_compact"), forSegment: 1)
+        shelfSizeControl.selectedSegment = ShelfSizePreference.value == .standard ? 0 : 1
 
         languagePopUp.removeAllItems()
         let systemLabel = "\(L("settings.language_system")) (\(LocalizationManager.shared.currentLanguage.nativeName))"
