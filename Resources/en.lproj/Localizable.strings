@@ -1,0 +1,22 @@
+/* Status bar menu */
+"menu.settings" = "Settings…";
+"menu.accessibility" = "Open Accessibility Settings…";
+"menu.quit" = "Quit";
+
+/* Shelf */
+"drop_hint" = "Drop files here";
+"files.one" = "%d file";
+"files.few" = "%d files";
+"files.many" = "%d files";
+"files.other" = "%d files";
+
+/* Settings window */
+"settings.window_title" = "Settings";
+"settings.title" = "Shake Sensitivity";
+"settings.subtitle" = "How hard you need to shake a file for the shelf to open";
+"settings.weak_end" = "Needs a strong shake";
+"settings.strong_end" = "A light shake is enough";
+"settings.readout" = "Sensitivity: %d%%";
+"settings.reset" = "Reset";
+"settings.language_title" = "Interface Language";
+"settings.language_system" = "System";

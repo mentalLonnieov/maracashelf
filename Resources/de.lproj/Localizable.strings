@@ -1,0 +1,22 @@
+/* Status bar menu */
+"menu.settings" = "Einstellungen…";
+"menu.accessibility" = "Bedienungshilfen-Einstellungen öffnen…";
+"menu.quit" = "Beenden";
+
+/* Shelf */
+"drop_hint" = "Dateien hierher ziehen";
+"files.one" = "%d Datei";
+"files.few" = "%d Dateien";
+"files.many" = "%d Dateien";
+"files.other" = "%d Dateien";
+
+/* Settings window */
+"settings.window_title" = "Einstellungen";
+"settings.title" = "Schüttelempfindlichkeit";
+"settings.subtitle" = "Wie stark man eine Datei schütteln muss, damit sich die Ablage öffnet";
+"settings.weak_end" = "Kräftiges Schütteln nötig";
+"settings.strong_end" = "Leichtes Schütteln genügt";
+"settings.readout" = "Empfindlichkeit: %d %%";
+"settings.reset" = "Zurücksetzen";
+"settings.language_title" = "Oberflächensprache";
+"settings.language_system" = "System";

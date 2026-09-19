@@ -1,18 +1,31 @@
 import AppKit
 
-/// Settings window for adjusting shake sensitivity, styled to match the shelf itself: a
-/// borderless, rounded Liquid Glass card instead of a standard system window. Unlike the
-/// shelf panel, this one is a normal (key-able) window — opening it is a deliberate action
-/// from the menu, so it's fine for it to take keyboard focus like any preferences window.
+/// Settings window for adjusting shake sensitivity and the interface language, styled to
+/// match the shelf itself: a borderless, rounded Liquid Glass card instead of a standard
+/// system window. Unlike the shelf panel, this one is a normal (key-able) window — opening
+/// it is a deliberate action from the menu, so it's fine for it to take keyboard focus like
+/// any preferences window.
 final class SettingsWindowController: NSWindowController {
 
     private let slider = NSSlider(value: ShakeSensitivity.value, minValue: 0, maxValue: 1, target: nil, action: nil)
     private let readoutLabel = NSTextField(labelWithString: "")
     private let closeButton = RoundIconButton(symbol: "xmark", tint: .white)
 
+    private let windowTitleLabel = NSTextField(labelWithString: "")
+    private let titleLabel = NSTextField(labelWithString: "")
+    private let subtitleLabel = NSTextField(wrappingLabelWithString: "")
+    private let leftEndLabel = NSTextField(labelWithString: "")
+    private let rightEndLabel = NSTextField(labelWithString: "")
+    private let resetButton = PillButton(title: "")
+    private let languageTitleLabel = NSTextField(labelWithString: "")
+    private let languagePopUp = NSPopUpButton(frame: .zero, pullsDown: false)
+
+    /// Index 0 is always "System" (nil override); the rest mirror `AppLanguage.allCases`.
+    private let languageOptions: [AppLanguage?] = [nil] + AppLanguage.allCases
+
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 360, height: 220),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 296),
             styleMask: [.borderless, .resizable],
             backing: .buffered,
             defer: false
@@ -25,7 +38,12 @@ final class SettingsWindowController: NSWindowController {
         window.center()
         self.init(window: window)
         buildUI()
-        updateReadout()
+        refreshLocalizedText()
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(refreshLocalizedText),
+            name: LocalizationManager.languageDidChangeNotification, object: nil
+        )
     }
 
     private func buildUI() {
@@ -45,23 +63,29 @@ final class SettingsWindowController: NSWindowController {
         closeGlass.translatesAutoresizingMaskIntoConstraints = false
         chromeContent.addSubview(closeGlass)
 
-        let title = NSTextField(labelWithString: "Чувствительность тряски")
-        title.font = .boldSystemFont(ofSize: 14)
-        title.textColor = .white
+        // Sits in the same row as the close button (vertically centered on it) instead of
+        // its own line below — that used to leave an odd empty strip next to "×".
+        windowTitleLabel.font = .boldSystemFont(ofSize: 15)
+        windowTitleLabel.textColor = .white
+        windowTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        chromeContent.addSubview(windowTitleLabel)
 
-        let subtitle = NSTextField(wrappingLabelWithString: "Насколько сильно нужно трясти файл, чтобы открылась полка")
-        subtitle.font = .systemFont(ofSize: 12)
-        subtitle.textColor = .white.withAlphaComponent(0.65)
-        subtitle.alignment = .center
+        // Now a section header, not the window's own title (see windowTitleLabel above) —
+        // this window covers more than just sensitivity, so it needed an overall title;
+        // this label was demoted to match languageTitleLabel's section-header styling.
+        titleLabel.font = .systemFont(ofSize: 11, weight: .semibold)
+        titleLabel.textColor = .white.withAlphaComponent(0.65)
 
-        let leftLabel = NSTextField(labelWithString: "Нужна сильная тряска")
-        leftLabel.font = .systemFont(ofSize: 11)
-        leftLabel.textColor = .white.withAlphaComponent(0.5)
+        subtitleLabel.font = .systemFont(ofSize: 12)
+        subtitleLabel.textColor = .white.withAlphaComponent(0.65)
+        subtitleLabel.alignment = .center
 
-        let rightLabel = NSTextField(labelWithString: "Достаточно лёгкой тряски")
-        rightLabel.font = .systemFont(ofSize: 11)
-        rightLabel.textColor = .white.withAlphaComponent(0.5)
-        rightLabel.alignment = .right
+        leftEndLabel.font = .systemFont(ofSize: 11)
+        leftEndLabel.textColor = .white.withAlphaComponent(0.5)
+
+        rightEndLabel.font = .systemFont(ofSize: 11)
+        rightEndLabel.textColor = .white.withAlphaComponent(0.5)
+        rightEndLabel.alignment = .right
 
         slider.target = self
         slider.action = #selector(sliderChanged)
@@ -71,25 +95,42 @@ final class SettingsWindowController: NSWindowController {
         readoutLabel.textColor = .white
         readoutLabel.alignment = .center
 
-        let resetButton = PillButton(title: "Сбросить")
         resetButton.target = self
         resetButton.action = #selector(resetTapped)
         let resetGlass = GlassChrome.control(cornerRadius: 13, content: resetButton)
         resetGlass.translatesAutoresizingMaskIntoConstraints = false
 
-        let endpointsRow = NSStackView(views: [leftLabel, rightLabel])
+        let endpointsRow = NSStackView(views: [leftEndLabel, rightEndLabel])
         endpointsRow.orientation = .horizontal
         endpointsRow.distribution = .fillEqually
 
-        let stack = NSStackView(views: [title, subtitle, slider, endpointsRow, readoutLabel, resetGlass])
+        languageTitleLabel.font = .systemFont(ofSize: 11, weight: .semibold)
+        languageTitleLabel.textColor = .white.withAlphaComponent(0.65)
+
+        // A native control forced into dark appearance so its text stays legible against
+        // our permanently-dark glass card, regardless of the system's own light/dark mode.
+        languagePopUp.appearance = NSAppearance(named: .darkAqua)
+        languagePopUp.target = self
+        languagePopUp.action = #selector(languageChanged)
+
+        let divider = NSBox()
+        divider.boxType = .separator
+
+        let stack = NSStackView(views: [
+            titleLabel, subtitleLabel, slider, endpointsRow, readoutLabel, resetGlass,
+            divider, languageTitleLabel, languagePopUp,
+        ])
         stack.orientation = .vertical
         stack.alignment = .centerX
         stack.spacing = 12
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 24, bottom: 20, right: 24)
         stack.translatesAutoresizingMaskIntoConstraints = false
-        stack.setCustomSpacing(4, after: title)
-        stack.setCustomSpacing(16, after: subtitle)
+        stack.setCustomSpacing(4, after: titleLabel)
+        stack.setCustomSpacing(16, after: subtitleLabel)
         stack.setCustomSpacing(4, after: slider)
+        stack.setCustomSpacing(18, after: resetGlass)
+        stack.setCustomSpacing(6, after: divider)
+        stack.setCustomSpacing(6, after: languageTitleLabel)
 
         chromeContent.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -98,13 +139,18 @@ final class SettingsWindowController: NSWindowController {
             closeGlass.widthAnchor.constraint(equalToConstant: 28),
             closeGlass.heightAnchor.constraint(equalToConstant: 28),
 
-            stack.topAnchor.constraint(equalTo: closeGlass.bottomAnchor, constant: 8),
+            windowTitleLabel.centerYAnchor.constraint(equalTo: closeGlass.centerYAnchor),
+            windowTitleLabel.centerXAnchor.constraint(equalTo: chromeContent.centerXAnchor),
+
+            stack.topAnchor.constraint(equalTo: closeGlass.bottomAnchor, constant: 16),
             stack.leadingAnchor.constraint(equalTo: chromeContent.leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: chromeContent.trailingAnchor),
             stack.bottomAnchor.constraint(equalTo: chromeContent.bottomAnchor),
-            subtitle.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            subtitleLabel.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
             slider.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
             endpointsRow.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            divider.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            languagePopUp.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
         ])
     }
 
@@ -123,8 +169,35 @@ final class SettingsWindowController: NSWindowController {
         window?.orderOut(nil)
     }
 
+    @objc private func languageChanged() {
+        LocalizationManager.shared.userOverride = languageOptions[languagePopUp.indexOfSelectedItem]
+    }
+
     private func updateReadout() {
-        readoutLabel.stringValue = "Чувствительность: \(Int(ShakeSensitivity.value * 100))%"
+        readoutLabel.stringValue = String(format: L("settings.readout"), Int(ShakeSensitivity.value * 100))
+    }
+
+    /// Re-applies every piece of text in the window — called on first build and whenever
+    /// the language changes (including from this very window's own picker), so it updates
+    /// live without needing to be reopened.
+    @objc private func refreshLocalizedText() {
+        windowTitleLabel.stringValue = L("settings.window_title")
+        titleLabel.stringValue = L("settings.title")
+        subtitleLabel.stringValue = L("settings.subtitle")
+        leftEndLabel.stringValue = L("settings.weak_end")
+        rightEndLabel.stringValue = L("settings.strong_end")
+        resetButton.setTitle(L("settings.reset"))
+        languageTitleLabel.stringValue = L("settings.language_title")
+        updateReadout()
+
+        languagePopUp.removeAllItems()
+        let systemLabel = "\(L("settings.language_system")) (\(LocalizationManager.shared.currentLanguage.nativeName))"
+        languagePopUp.addItem(withTitle: systemLabel)
+        for language in AppLanguage.allCases {
+            languagePopUp.addItem(withTitle: language.nativeName)
+        }
+        let selectedIndex = languageOptions.firstIndex { $0 == LocalizationManager.shared.userOverride } ?? 0
+        languagePopUp.selectItem(at: selectedIndex)
     }
 
     func show() {

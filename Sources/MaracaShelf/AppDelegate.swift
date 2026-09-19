@@ -7,10 +7,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var settingsWindowController: SettingsWindowController?
 
+    private var settingsMenuItem: NSMenuItem?
+    private var accessibilityMenuItem: NSMenuItem?
+    private var quitMenuItem: NSMenuItem?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         ShelfStorage.cleanUpOrphanedSessions()
         promptForAccessibilityIfNeeded()
         setupStatusItem()
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(refreshMenuTitles),
+            name: LocalizationManager.languageDidChangeNotification, object: nil
+        )
 
         shakeMonitor.onShake = { [weak self] location in
             self?.handleShake(at: location)
@@ -47,17 +56,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
         menu.addItem(withTitle: "MaracaShelf", action: nil, keyEquivalent: "").isEnabled = false
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Чувствительность тряски…",
-                     action: #selector(openSensitivitySettings), keyEquivalent: "")
-            .target = self
-        menu.addItem(withTitle: "Открыть настройки специальных возможностей…",
-                     action: #selector(openAccessibilitySettings), keyEquivalent: "")
-            .target = self
+
+        let settingsItem = menu.addItem(withTitle: "", action: #selector(openSettings), keyEquivalent: "")
+        settingsItem.target = self
+        settingsMenuItem = settingsItem
+
+        let accessibilityItem = menu.addItem(withTitle: "", action: #selector(openAccessibilitySettings), keyEquivalent: "")
+        accessibilityItem.target = self
+        accessibilityMenuItem = accessibilityItem
+
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Выход", action: #selector(quit), keyEquivalent: "q").target = self
+
+        let quitItem = menu.addItem(withTitle: "", action: #selector(quit), keyEquivalent: "q")
+        quitItem.target = self
+        quitMenuItem = quitItem
 
         item.menu = menu
         statusItem = item
+        refreshMenuTitles()
+    }
+
+    @objc private func refreshMenuTitles() {
+        settingsMenuItem?.title = L("menu.settings")
+        accessibilityMenuItem?.title = L("menu.accessibility")
+        quitMenuItem?.title = L("menu.quit")
     }
 
     /// Loads the custom maraca menu-bar icon from the app bundle's Resources (both @2x and
@@ -86,7 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSImage(systemSymbolName: "shippingbox", accessibilityDescription: "MaracaShelf")
     }
 
-    @objc private func openSensitivitySettings() {
+    @objc private func openSettings() {
         let controller = settingsWindowController ?? SettingsWindowController()
         settingsWindowController = controller
         controller.show()

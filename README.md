@@ -18,28 +18,69 @@ the menu bar's light/dark appearance). `Scripts/build_app.sh` copies them into
 `Contents/Resources` at build time; when running the raw debug binary directly (not through
 the packaged `.app`), those files aren't available and `AppDelegate.loadStatusIcon()`
 silently falls back to the system `shippingbox` symbol.
-The menu icon's menu lets you adjust shake sensitivity, open Accessibility settings, or
-quit. (The app's own UI strings are in Russian — this README quotes them as they appear,
-with an English gloss where useful.)
+The menu icon's menu lets you open Settings (shake sensitivity + interface language),
+open Accessibility settings, or quit.
 
-## Sensitivity settings
+The `.app` bundle itself (as seen in Finder, Get Info, Spotlight) has its own separate icon
+— a glossy blue maraca on a light gray gradient, `Resources/AppIcon.icns`, wired up via
+`CFBundleIconFile` in `Info.plist` (see `Scripts/build_app.sh`). This is unrelated to the
+menu bar image above: that one is a flat black-and-white *template* image (so macOS can
+tint it for the menu bar), while this one is a full-color 1024×1024 source flattened into
+the standard `.icns` size set via `iconutil`. macOS 26 Tahoe also introduced a newer
+multi-layer "Liquid Glass" icon format (built with Xcode's Icon Composer, giving icons
+depth/parallax) — this project doesn't use it since it's built with plain `swift build`,
+not Xcode; a standard flat `.icns` still renders correctly on 26/27, just without that
+extra dynamic depth effect.
 
-Menu icon → "Чувствительность тряски…" (Shake sensitivity…) opens a window with a slider from "needs a strong
-shake" to "a light shake is enough". The value persists across launches (`UserDefaults`,
-key `ShakeSensitivity`) and applies immediately, no restart needed — `ShakeDragMonitor`
-reads it on every gesture check (see `ShakeSensitivity.swift`). The default value (50%)
-matches the detector's original hardcoded thresholds. The settings window is styled the
-same way as the shelf — a borderless card with the same Liquid Glass (`GlassChrome`) and
-its own "×" button instead of the system one — but unlike the shelf it does become a key
-window (it's an ordinary settings window, not a drag & drop overlay).
+## Settings window
+
+Menu icon → "Settings…" opens a window styled the same way as the shelf — a borderless
+card with the same Liquid Glass (`GlassChrome`) and its own "×" button instead of the
+system one — but unlike the shelf it does become a key window (it's an ordinary settings
+window, not a drag & drop overlay). It has two sections under an overall "Settings" title:
+
+- **Shake Sensitivity** — a slider from "needs a strong shake" to "a light shake is
+  enough". The value persists across launches (`UserDefaults`, key `ShakeSensitivity`) and
+  applies immediately, no restart needed — `ShakeDragMonitor` reads it on every gesture
+  check (see `ShakeSensitivity.swift`). The default value (50%) matches the detector's
+  original hardcoded thresholds.
+- **Interface Language** — see below.
+
+(The window's own title and each section header share one label style —
+`SettingsWindowController.titleLabel`, i.e. "Shake Sensitivity", used to be styled as the
+window's title before the language section existed; once there were two sections it was
+demoted to match, and a new `windowTitleLabel` ("Settings") was added above both.)
+
+## Localization
+
+The UI ships in six languages: English, Russian, Ukrainian, Polish, Czech, German. On
+first launch it picks whichever of those matches the system's preferred language, falling
+back to English if none match. It can be overridden at any time from the settings window's
+"Interface Language" section — the whole UI updates immediately, no relaunch needed.
+
+This is handled by a custom `LocalizationManager` rather than plain `NSLocalizedString`:
+`NSLocalizedString` always resolves against `Bundle.main` using the system's own language
+list, which can't be overridden per-app without relaunching. Instead, `LocalizationManager`
+loads whichever `Resources/<code>.lproj/Localizable.strings` bundle is currently in effect
+directly (see `Scripts/build_app.sh`, which copies all six `.lproj` folders into
+`Contents/Resources`) and posts a notification on change so already-built UI — the status
+bar menu, an open settings window — can refresh its text in place (see
+`AppDelegate.refreshMenuTitles` and `SettingsWindowController.refreshLocalizedText`).
+
+File counts ("N files") are pluralized per language's actual grammar rather than a generic
+singular/plural split — `Pluralizer.swift` implements each language's Unicode CLDR integer
+plural rule: English/German only distinguish one vs. other; Russian and Ukrainian share the
+same three-category Slavic rule (e.g. "21 файл" / "22 файла" / "25 файлов"); Polish and
+Czech each have their own distinct variant. Verified by print-checking `fileCount(n)` for
+n ∈ {0, 1, 2, 5, 11, 21, 22} against every language's real grammar rather than trusting the
+formulas by inspection alone.
 
 ## Required permission
 
 For the app to see mouse movement while you're dragging a file **from another app**
 (Finder, Mail, etc.), macOS requires the **Accessibility** permission (Privacy & Security →
 Accessibility). The system should prompt for it on first launch; if not, go to the menu
-icon → "Открыть настройки специальных возможностей…" (Open Accessibility Settings…) and
-enable MaracaShelf in the list.
+icon → "Open Accessibility Settings…" and enable MaracaShelf in the list.
 
 Without this permission the shelf will only open when shaking during a drag *inside
 MaracaShelf itself* (local events), not over other applications.

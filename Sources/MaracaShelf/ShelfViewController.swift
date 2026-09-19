@@ -28,8 +28,8 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
     private let airDropButton = RoundIconButton(symbol: "square.and.arrow.up", tint: .white)
     private var airDropGlass: NSView!
     private var activeSharingService: NSSharingService?
-    private let dropHintLabel = NSTextField(labelWithString: "Перетащите файлы сюда")
-    private let countPill = PillButton(title: "0 файлов")
+    private let dropHintLabel = NSTextField(labelWithString: L("drop_hint"))
+    private let countPill = PillButton(title: LocalizationManager.shared.fileCount(0))
     private let collapsedPreview = CollapsedPreviewRow()
     private var collectionView: NSCollectionView!
     private var scrollView: NSScrollView!
@@ -248,8 +248,7 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
 
     private func refresh() {
         dropHintLabel.isHidden = isCollapsed || !items.isEmpty
-        let count = items.count
-        countPill.setTitle(count == 1 ? "1 файл" : "\(count) файлов")
+        countPill.setTitle(LocalizationManager.shared.fileCount(items.count))
         collapsedPreview.update(with: items)
     }
 

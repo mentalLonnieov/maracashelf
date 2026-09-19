@@ -1,0 +1,22 @@
+/* Status bar menu */
+"menu.settings" = "Nastavení…";
+"menu.accessibility" = "Otevřít nastavení usnadnění…";
+"menu.quit" = "Ukončit";
+
+/* Shelf */
+"drop_hint" = "Přetáhněte soubory sem";
+"files.one" = "%d soubor";
+"files.few" = "%d soubory";
+"files.many" = "%d souborů";
+"files.other" = "%d souborů";
+
+/* Settings window */
+"settings.window_title" = "Nastavení";
+"settings.title" = "Citlivost třesení";
+"settings.subtitle" = "Jak silně je potřeba zatřást souborem, aby se otevřela polička";
+"settings.weak_end" = "Je potřeba silné zatřesení";
+"settings.strong_end" = "Stačí jemné zatřesení";
+"settings.readout" = "Citlivost: %d %%";
+"settings.reset" = "Obnovit";
+"settings.language_title" = "Jazyk rozhraní";
+"settings.language_system" = "Systémový";

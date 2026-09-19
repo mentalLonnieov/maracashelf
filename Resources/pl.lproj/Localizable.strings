@@ -1,0 +1,22 @@
+/* Status bar menu */
+"menu.settings" = "Ustawienia…";
+"menu.accessibility" = "Otwórz ustawienia ułatwień dostępu…";
+"menu.quit" = "Zakończ";
+
+/* Shelf */
+"drop_hint" = "Przeciągnij pliki tutaj";
+"files.one" = "%d plik";
+"files.few" = "%d pliki";
+"files.many" = "%d plików";
+"files.other" = "%d pliku";
+
+/* Settings window */
+"settings.window_title" = "Ustawienia";
+"settings.title" = "Czułość potrząsania";
+"settings.subtitle" = "Jak mocno trzeba potrząsnąć plikiem, aby otworzyła się półka";
+"settings.weak_end" = "Wymagane mocne potrząśnięcie";
+"settings.strong_end" = "Wystarczy lekkie potrząśnięcie";
+"settings.readout" = "Czułość: %d%%";
+"settings.reset" = "Resetuj";
+"settings.language_title" = "Język interfejsu";
+"settings.language_system" = "Systemowy";

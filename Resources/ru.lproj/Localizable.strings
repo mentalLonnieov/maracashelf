@@ -1,0 +1,22 @@
+/* Status bar menu */
+"menu.settings" = "Настройки…";
+"menu.accessibility" = "Открыть настройки специальных возможностей…";
+"menu.quit" = "Выход";
+
+/* Shelf */
+"drop_hint" = "Перетащите файлы сюда";
+"files.one" = "%d файл";
+"files.few" = "%d файла";
+"files.many" = "%d файлов";
+"files.other" = "%d файла";
+
+/* Settings window */
+"settings.window_title" = "Настройки";
+"settings.title" = "Чувствительность тряски";
+"settings.subtitle" = "Насколько сильно нужно трясти файл, чтобы открылась полка";
+"settings.weak_end" = "Нужна сильная тряска";
+"settings.strong_end" = "Достаточно лёгкой тряски";
+"settings.readout" = "Чувствительность: %d%%";
+"settings.reset" = "Сбросить";
+"settings.language_title" = "Язык интерфейса";
+"settings.language_system" = "Системный";

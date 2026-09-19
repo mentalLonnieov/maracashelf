@@ -1,0 +1,22 @@
+/* Status bar menu */
+"menu.settings" = "Налаштування…";
+"menu.accessibility" = "Відкрити налаштування спеціальних можливостей…";
+"menu.quit" = "Вийти";
+
+/* Shelf */
+"drop_hint" = "Перетягніть файли сюди";
+"files.one" = "%d файл";
+"files.few" = "%d файли";
+"files.many" = "%d файлів";
+"files.other" = "%d файлу";
+
+/* Settings window */
+"settings.window_title" = "Налаштування";
+"settings.title" = "Чутливість струшування";
+"settings.subtitle" = "Наскільки сильно потрібно трусити файл, щоб відкрилася полиця";
+"settings.weak_end" = "Потрібне сильне струшування";
+"settings.strong_end" = "Достатньо легкого струшування";
+"settings.readout" = "Чутливість: %d%%";
+"settings.reset" = "Скинути";
+"settings.language_title" = "Мова інтерфейсу";
+"settings.language_system" = "Системна";
