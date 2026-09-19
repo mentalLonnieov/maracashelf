@@ -7,6 +7,16 @@ import AppKit
 /// dragging from *any* icon just drags every file at once — the collapsed state is a
 /// "grab the whole shelf" shortcut, not a picker.
 final class CollapsedPreviewRow: NSView, NSDraggingSource {
+    /// The panel's own drop-accepting view (`ShelfDropView`) — incoming drags are forwarded
+    /// here rather than handled independently. `ShelfDropView` fully covers the panel
+    /// including while collapsed, but AppKit only delivers dragging-destination callbacks
+    /// to whichever *specific* view is registered for the dragged types and sits topmost
+    /// under the pointer; this row visually sits on top of it while collapsed and wasn't
+    /// itself registered, so drops landing directly on the visible icons were silently
+    /// rejected. Forwarding (rather than duplicating the drop-handling logic here) keeps
+    /// that logic — including the same-window self-drop guard — in one place.
+    weak var dropForwardTarget: NSView?
+
     private let stack = NSStackView()
     private let maxVisible = 5
     private let iconSize: CGFloat = 28
@@ -35,6 +45,17 @@ final class CollapsedPreviewRow: NSView, NSDraggingSource {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    // The icon images and the "+N" label are purely decorative — all interaction (both the
+    // outgoing "drag everything out" gesture and the incoming drop-forwarding below) is
+    // meant to belong to the row itself. Dragging-destination callbacks, unlike mouse
+    // events, are delivered to whichever exact view the point hit-tests to with no
+    // fallback to an ancestor, so without this override a drop landing squarely on an icon
+    // (rather than the gaps between them) would silently miss instead of reaching
+    // `dropForwardTarget`.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        super.hitTest(point) == nil ? nil : self
+    }
 
     func update(with items: [ShelfItem]) {
         self.items = items
@@ -135,5 +156,15 @@ final class CollapsedPreviewRow: NSView, NSDraggingSource {
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         .copy
+    }
+
+    // MARK: - Drag in (forwarded to the panel's drop view — see `dropForwardTarget`)
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        dropForwardTarget?.draggingEntered(sender) ?? []
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        dropForwardTarget?.performDragOperation(sender) ?? false
     }
 }

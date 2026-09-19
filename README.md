@@ -131,7 +131,14 @@ Every file that passes through the shelf is also copied into a persistent archiv
 (`~/Library/Application Support/MaracaShelf/Archive`) — separate from the shelf's own
 per-session temp copies, and unaffected by closing the shelf or quitting the app. Open it
 from the menu icon's "Show Archive…" item to browse what's there, drag files back out into
-another app, or remove individual ones.
+another app, or remove individual ones. The window floats above other apps and follows you
+to whichever desktop/Space is active, so it stays reachable while you're dragging files
+elsewhere.
+
+The archive also won't accumulate redundant copies of the same file: removing it from a
+shelf and dragging it back in, or dragging the same file into a brand-new shake session
+later, is recognized as the same file (see "How it works" below) and reuses the existing
+archive entry instead of storing it again.
 
 By default, archived files are deleted automatically after 7 days. Change that window
 (1–30 days) from the settings window's new "Storage" section, or clear the archive
@@ -186,6 +193,25 @@ of being fixed forever.
   (`NSHapticFeedbackManager`, `.alignment` style — the same one Finder uses for icon
   alignment), fired once per drop rather than once per file when several are dropped at
   once.
+- Dropping a file onto the *collapsed* shelf works too, not just the expanded grid. The
+  panel's whole body (`ShelfDropView`) already covers the collapsed state as well — it's
+  just visually replaced by `CollapsedPreviewRow`, a plain `NSView` that wasn't itself
+  registered for drag types. Unlike ordinary mouse events, dragging-destination callbacks
+  aren't delivered to an ancestor when the exact hit-tested view isn't registered, so a
+  drop landing on the visible collapsed row (rather than the sliver of bare panel around
+  it) was silently missing before: `CollapsedPreviewRow` now also registers for the same
+  drag types and forwards `draggingEntered`/`performDragOperation` straight to
+  `ShelfDropView` rather than duplicating its logic — and overrides `hitTest` to always
+  return itself (never one of its purely decorative icon/label subviews), so a drop
+  landing squarely on an icon reaches that forwarding too.
+- Dropping the same file into the shelf twice is rejected instead of piling up endless
+  renamed duplicates ("file 1.ext", "file 2.ext", ...): `ShelfViewController` tracks a
+  dedup key per already-added file — the source URL's standardized path for a plain file
+  drag, or the proposed filename for a promise (Mail/Safari attachments don't expose a
+  real source path). A rejected re-drop briefly flashes the existing thumbnail and lets the
+  dragged icon snap back to its origin (returning `false` from the drop handler), rather
+  than silently doing nothing. Removing a file from the shelf frees its key again, so it
+  can deliberately be dropped back in.
 - Dragging a file OUT of the shelf hands the receiving app the path to that temp copy.
   Multi-select works with standard macOS gestures (⌘-click to add/remove a file from the
   selection, Shift-click to select a range) — dragging out of a selection sends every
@@ -231,6 +257,14 @@ of being fixed forever.
   `ArchiveRetentionSettings.days` (default 7, 1–30 range) based on each folder's creation
   date — run on launch, hourly via a repeating `Timer`, and whenever the archive window
   opens, so it stays current even across a multi-day run with no relaunch.
+- The archive dedups by the same identity key as the live shelf, but persists it: each
+  archived folder gets a hidden `.maraca-source-key` sidecar file, and `archive(_:sourceKey:)`
+  skips creating a new copy if that key is already present in *any* existing folder — kept
+  out of `loadEntries()`'s directory listing via `.skipsHiddenFiles`. This is what makes
+  "remove from the shelf, then drag the same file back in" and "drag the same file into a
+  new shake session weeks later" both reuse the one archive entry instead of piling up
+  duplicates, since the check reads persisted disk state rather than any in-memory set
+  scoped to a single shelf.
 - "Uninstall MaracaShelf…" (status bar menu) deletes the whole Application Support folder
   and moves the running `.app` bundle to the Trash via `NSWorkspace.recycle(_:)` — waiting
   for its completion handler before calling `NSApp.terminate(nil)`, since quitting

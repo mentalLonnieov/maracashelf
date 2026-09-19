@@ -10,6 +10,9 @@ final class ShelfItem {
     /// Starts out as the generic file-type icon and gets swapped for a real content
     /// preview (actual image/PDF/etc. content) once `ThumbnailLoader` finishes rendering it.
     var icon: NSImage
+    /// Set by `ShelfViewController` to identify this item for duplicate-drop detection;
+    /// unused (nil) for archive entries, which don't need it.
+    var sourceKey: String?
 
     init(displayName: String, tempURL: URL) {
         self.displayName = displayName

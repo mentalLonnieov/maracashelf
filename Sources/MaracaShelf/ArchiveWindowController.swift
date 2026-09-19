@@ -28,6 +28,14 @@ final class ArchiveWindowController: NSWindowController {
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 260, height: 300)
+        // Floats above ordinary windows and follows the active Space — same level
+        // ShelfPanel uses (not a higher one: .screenSaver was tried there and found to
+        // break drag & drop hit-testing, since very high levels are excluded from it).
+        // Unlike ShelfPanel this stays in Mission Control/App Exposé and the window
+        // cycle, since it's a real window the user deliberately keeps open, not a
+        // transient overlay.
+        window.level = .floating
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.center()
         self.init(window: window)
         buildUI()

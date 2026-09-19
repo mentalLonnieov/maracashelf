@@ -12,6 +12,11 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
     private var items: [ShelfItem] = []
     private let promiseQueue = OperationQueue()
 
+    /// Identity keys of files already added to this shelf — see `shelfDropView(performDrop:)`
+    /// — so dragging the same file in again is rejected instead of piling up endless
+    /// renamed duplicates ("file 1.ext", "file 2.ext", ...).
+    private var knownFileKeys: Set<String> = []
+
     // Auto Layout's real minimum for the collapsed content is measured empirically (see
     // README) — asking for less makes the window animate toward an impossible size and get
     // yanked to the real minimum the instant the animation settles, which looks like a
@@ -112,6 +117,8 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
         // instead of the pill-sized bar just repeating the count with empty space above it.
         collapsedPreview.translatesAutoresizingMaskIntoConstraints = false
         collapsedPreview.isHidden = true
+        collapsedPreview.dropForwardTarget = container
+        registerDragTypes(on: collapsedPreview)
         container.addSubview(collapsedPreview)
         NSLayoutConstraint.activate([
             collapsedPreview.topAnchor.constraint(equalTo: closeGlass.bottomAnchor, constant: 8),
@@ -196,10 +203,10 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
 
     // MARK: - Drag destination (files coming IN)
 
-    private func registerDragTypes(on dropView: ShelfDropView) {
+    private func registerDragTypes(on view: NSView) {
         var types: [NSPasteboard.PasteboardType] = [.fileURL]
         types.append(contentsOf: NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
-        dropView.registerForDraggedTypes(types)
+        view.registerForDraggedTypes(types)
     }
 
     func shelfDropView(_ view: ShelfDropView, performDrop pasteboard: NSPasteboard) -> Bool {
@@ -209,13 +216,21 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
             return false
         }
 
-        // The same "something just landed" tap Finder gives you when dragging an icon
-        // onto a folder — one pulse per drop, not per file, so a multi-file drop doesn't
-        // turn into a buzz.
-        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
+        var addedAny = false
 
         for object in objects {
             if let promiseReceiver = object as? NSFilePromiseReceiver {
+                // Promises (Mail/Safari attachments) never expose the sender's original file
+                // path, only the proposed name — used as the dedup key instead. That's a
+                // deliberate simplification: two different attachments that happen to share a
+                // name would also be (harmlessly) treated as duplicates.
+                let key = "promise:" + (promiseReceiver.fileNames.first ?? UUID().uuidString)
+                guard !knownFileKeys.contains(key) else {
+                    flashExistingItem(for: key)
+                    continue
+                }
+                knownFileKeys.insert(key)
+                addedAny = true
                 promiseReceiver.receivePromisedFiles(
                     atDestination: storage.sessionDirectory,
                     options: [:],
@@ -223,21 +238,40 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
                 ) { [weak self] fileURL, error in
                     guard error == nil else { return }
                     DispatchQueue.main.async {
-                        self?.addItem(ShelfItem(displayName: fileURL.lastPathComponent, tempURL: fileURL))
+                        self?.addItem(ShelfItem(displayName: fileURL.lastPathComponent, tempURL: fileURL), sourceKey: key)
                     }
                 }
-            } else if let url = object as? URL, let shelfItem = storage.copy(from: url) {
-                addItem(shelfItem)
+            } else if let url = object as? URL {
+                let key = "url:" + url.standardizedFileURL.path
+                guard !knownFileKeys.contains(key) else {
+                    flashExistingItem(for: key)
+                    continue
+                }
+                guard let shelfItem = storage.copy(from: url) else { continue }
+                knownFileKeys.insert(key)
+                addedAny = true
+                addItem(shelfItem, sourceKey: key)
             }
         }
-        return true
+
+        // The same "something just landed" tap Finder gives you when dragging an icon onto a
+        // folder — one pulse per drop that actually added something new, not per file, and
+        // not at all when the whole drop turned out to be duplicates already in the shelf.
+        if addedAny {
+            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
+        }
+        // Returning false for an all-duplicates drop makes the dragged icon(s) snap back to
+        // their origin — the standard AppKit "rejected" animation, on top of the flash on
+        // the existing item(s) — instead of silently pretending the drop succeeded.
+        return addedAny
     }
 
-    private func addItem(_ item: ShelfItem) {
+    private func addItem(_ item: ShelfItem, sourceKey: String? = nil) {
+        item.sourceKey = sourceKey
         items.append(item)
         collectionView.insertItems(at: [IndexPath(item: items.count - 1, section: 0)])
         refresh()
-        ArchiveStorage.archive(item.tempURL)
+        ArchiveStorage.archive(item.tempURL, sourceKey: item.sourceKey)
 
         ThumbnailLoader.loadThumbnail(for: item.tempURL, pointSize: 96) { [weak self, weak item] image in
             guard let self, let item, let index = self.items.firstIndex(where: { $0 === item }) else { return }
@@ -247,11 +281,22 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
         }
     }
 
+    /// Briefly highlights the shelf's existing copy of a file whose re-drop was just
+    /// rejected as a duplicate, so the rejection isn't a silent no-op.
+    private func flashExistingItem(for key: String) {
+        guard let index = items.firstIndex(where: { $0.sourceKey == key }) else { return }
+        let indexPath = IndexPath(item: index, section: 0)
+        collectionView.scrollToItems(at: [indexPath], scrollPosition: .centeredVertically)
+        (collectionView.item(at: indexPath) as? FileThumbnailItem)?.flash()
+    }
+
     /// Takes a single file back out of the shelf (e.g. the wrong one got dropped in) —
-    /// deletes only our temp copy, never the original.
+    /// deletes only our temp copy, never the original. Also frees up its dedup key, so the
+    /// same file can deliberately be dropped back in afterward.
     private func removeItem(_ item: ShelfItem) {
         guard let index = items.firstIndex(where: { $0 === item }) else { return }
         items.remove(at: index)
+        if let key = item.sourceKey { knownFileKeys.remove(key) }
         try? FileManager.default.removeItem(at: item.tempURL)
         collectionView.deleteItems(at: [IndexPath(item: index, section: 0)])
         refresh()

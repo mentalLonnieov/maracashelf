@@ -78,4 +78,24 @@ final class FileThumbnailItem: NSCollectionViewItem {
     @objc private func removeTapped() {
         onRemove?()
     }
+
+    /// Briefly highlights the cell — used to say "this file is already in the shelf" when a
+    /// duplicate drop is rejected instead of silently doing nothing.
+    func flash() {
+        view.wantsLayer = true
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.12
+            ctx.allowsImplicitAnimation = true
+            view.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.35).cgColor
+        }, completionHandler: { [weak self] in
+            guard let self else { return }
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.25
+                ctx.allowsImplicitAnimation = true
+                self.view.layer?.backgroundColor = self.isSelected
+                    ? NSColor.white.withAlphaComponent(0.15).cgColor
+                    : NSColor.clear.cgColor
+            }
+        })
+    }
 }
