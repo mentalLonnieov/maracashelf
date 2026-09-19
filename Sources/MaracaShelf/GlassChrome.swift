@@ -18,7 +18,7 @@ enum GlassChrome {
             // Liquid Glass's press feedback (a slight grow/shimmer) is meant for buttons,
             // not something that fires every time you grab the window to move it.
             glass.contentView = content
-            pin(content, into: glass)
+            pinTrackingAnimatedResize(content, into: glass)
             return glass
         }
         return legacyMaterial(cornerRadius: cornerRadius, material: .hudWindow, content: content)
@@ -37,27 +37,47 @@ enum GlassChrome {
                 glass.effectIsInteractive = true
             }
             glass.contentView = content
-            pin(content, into: glass)
+            pinStatic(content, into: glass)
             return glass
         }
         return legacyTranslucentWrapper(cornerRadius: cornerRadius, content: content)
     }
 
-    /// Makes `content` fill `container` exactly. Used after handing a view to
-    /// `NSGlassEffectView.contentView` so its size never depends on undocumented internal
-    /// behavior — we own the sizing ourselves either way.
+    /// Makes `content` fill `container` exactly, for chrome whose *container* itself gets
+    /// resized by an animated `setFrame` (only the shelf's main panel, via its collapse/
+    /// expand animation). Deliberately uses an autoresizing mask instead of
+    /// NSLayoutConstraint: AppKit tracks the window's contentView smoothly in lockstep
+    /// every frame of an animated resize, but Auto Layout constraints on views further down
+    /// the hierarchy only get resolved once the animation settles — which showed up as the
+    /// rounded glass background visibly lagging behind (a "ghost" of the old size) until
+    /// the animation finished. Autoresizing masks resize synchronously with their
+    /// superview's frame, so the glass tracks the window exactly.
     ///
-    /// Deliberately uses an autoresizing mask instead of NSLayoutConstraint: when a window
-    /// is resized via an animated `setFrame` (see the shelf's collapse/expand), AppKit
-    /// tracks the window's contentView smoothly in lockstep every frame, but Auto Layout
-    /// constraints on views further down the hierarchy only get resolved once the animation
-    /// settles — which showed up as the rounded glass background visibly lagging behind
-    /// (a "ghost" of the old size) until the animation finished. Autoresizing masks resize
-    /// synchronously with their superview's frame, so the glass tracks the window exactly.
-    private static func pin(_ content: NSView, into container: NSView) {
+    /// Don't reuse this for content that never gets resized by an outside animation (i.e.
+    /// `control`'s small fixed-size buttons) — `NSGlassEffectView.contentView` already adds
+    /// its own internal Auto Layout constraints pinning the content's edges, and forcing
+    /// autoresizing on top of that fights those constraints instead of just being
+    /// redundant, producing a real "Conflicting constraints detected" warning at runtime
+    /// (only visible via Xcode's build log, not a plain `swift build`). Use `pinStatic`
+    /// there instead, which cooperates with those constraints instead of overriding them.
+    private static func pinTrackingAnimatedResize(_ content: NSView, into container: NSView) {
         content.translatesAutoresizingMaskIntoConstraints = true
         content.autoresizingMask = [.width, .height]
         content.frame = container.bounds
+    }
+
+    /// Makes `content` fill `container` exactly, for chrome that's never itself resized by
+    /// an outside animation (the small close/collapse/remove buttons). Plain Auto Layout
+    /// constraints, which is what `NSGlassEffectView.contentView` already expects/manages
+    /// internally — see `pinTrackingAnimatedResize` for why the two aren't interchangeable.
+    private static func pinStatic(_ content: NSView, into container: NSView) {
+        content.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            content.topAnchor.constraint(equalTo: container.topAnchor),
+            content.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            content.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            content.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
     }
 
     // MARK: - Pre-macOS 26 fallbacks
@@ -71,7 +91,7 @@ enum GlassChrome {
         effect.layer?.masksToBounds = true
 
         effect.addSubview(content)
-        pin(content, into: effect)
+        pinTrackingAnimatedResize(content, into: effect)
         return effect
     }
 
@@ -82,7 +102,7 @@ enum GlassChrome {
         wrapper.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
 
         wrapper.addSubview(content)
-        pin(content, into: wrapper)
+        pinStatic(content, into: wrapper)
         return wrapper
     }
 }

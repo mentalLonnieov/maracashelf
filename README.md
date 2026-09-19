@@ -162,6 +162,15 @@ of being fixed forever.
   frame, which looked like a jump/overshoot; every time the collapsed state's content
   changes (e.g. adding `CollapsedPreviewRow`) that minimum needs re-checking the same
   way — by logging timestamped `window.frame` samples across the animation, not by eye.
+  That autoresizing-based pin (`GlassChrome.pinTrackingAnimatedResize`) is only correct for
+  the *main panel*, whose container really is being resized by an outside animation.
+  Applying the same trick to `control`'s small static buttons (close/collapse/remove — never
+  themselves resized) fought `NSGlassEffectView.contentView`'s own internal Auto Layout
+  constraints instead of just being redundant, producing a real "Conflicting constraints
+  detected" warning at runtime — invisible in a plain `swift build`, but surfaced immediately
+  by Xcode's build log. Fixed by splitting the helper: `pinTrackingAnimatedResize` (still
+  autoresizing) for `panel`/its pre-26 fallback, `pinStatic` (plain NSLayoutConstraint,
+  cooperating with NSGlassEffectView's own constraints) for `control`/its pre-26 fallback.
 - While collapsed, the empty space between the header and the pill is now filled by a row
   of small previews (`CollapsedPreviewRow`, up to 5 icons plus a "+N" for the rest) — only
   visible while `isCollapsed == true`, updated whenever files are added/removed and when
