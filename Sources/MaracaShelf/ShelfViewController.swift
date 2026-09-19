@@ -237,6 +237,7 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
         items.append(item)
         collectionView.insertItems(at: [IndexPath(item: items.count - 1, section: 0)])
         refresh()
+        ArchiveStorage.archive(item.tempURL)
 
         ThumbnailLoader.loadThumbnail(for: item.tempURL, pointSize: 96) { [weak self, weak item] image in
             guard let self, let item, let index = self.items.firstIndex(where: { $0 === item }) else { return }

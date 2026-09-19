@@ -1,6 +1,8 @@
 /* Status bar menu */
+"menu.show_archive" = "Archiv anzeigen…";
 "menu.settings" = "Einstellungen…";
 "menu.accessibility" = "Bedienungshilfen-Einstellungen öffnen…";
+"menu.uninstall" = "MaracaShelf deinstallieren…";
 "menu.quit" = "Beenden";
 
 /* Shelf */
@@ -10,6 +12,21 @@
 "files.few" = "%d Dateien";
 "files.many" = "%d Dateien";
 "files.other" = "%d Dateien";
+
+/* Archive */
+"archive.window_title" = "Archiv";
+"archive.empty" = "Noch keine Dateien";
+"archive.clear_now" = "Archiv leeren";
+"archive.clear_confirm_title" = "Archiv leeren?";
+"archive.clear_confirm_message" = "Alle hier gespeicherten Dateien werden endgültig gelöscht.";
+"archive.clear_confirm_button" = "Archiv leeren";
+"archive.cancel_button" = "Abbrechen";
+
+/* Uninstall */
+"uninstall.confirm_title" = "MaracaShelf deinstallieren?";
+"uninstall.confirm_message" = "Das Archiv wird gelöscht und MaracaShelf.app in den Papierkorb verschoben. Dies kann nicht rückgängig gemacht werden.";
+"uninstall.confirm_button" = "Deinstallieren";
+"uninstall.cancel_button" = "Abbrechen";
 
 /* Settings window */
 "settings.window_title" = "Einstellungen";
@@ -21,3 +38,10 @@
 "settings.reset" = "Zurücksetzen";
 "settings.language_title" = "Oberflächensprache";
 "settings.language_system" = "System";
+"settings.storage_title" = "Speicher";
+"settings.storage_subtitle" = "Wie lange Dateien im Archiv bleiben, bevor sie automatisch gelöscht werden";
+"settings.storage_clear_now" = "Archiv jetzt leeren";
+"storage.days.one" = "%d Tag";
+"storage.days.few" = "%d Tage";
+"storage.days.many" = "%d Tage";
+"storage.days.other" = "%d Tage";

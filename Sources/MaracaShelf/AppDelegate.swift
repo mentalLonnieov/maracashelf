@@ -6,13 +6,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var activeShelf: ShelfWindowController?
     private var statusItem: NSStatusItem?
     private var settingsWindowController: SettingsWindowController?
+    private var archiveWindowController: ArchiveWindowController?
+    private var archivePurgeTimer: Timer?
 
+    private var archiveMenuItem: NSMenuItem?
     private var settingsMenuItem: NSMenuItem?
     private var accessibilityMenuItem: NSMenuItem?
+    private var uninstallMenuItem: NSMenuItem?
     private var quitMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         ShelfStorage.cleanUpOrphanedSessions()
+        ArchiveStorage.purgeExpired()
         promptForAccessibilityIfNeeded()
         setupStatusItem()
 
@@ -25,10 +30,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.handleShake(at: location)
         }
         shakeMonitor.start()
+
+        // The app can easily run for days between launches — sweep expired archive entries
+        // periodically instead of relying solely on the launch-time and window-open checks.
+        archivePurgeTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
+            ArchiveStorage.purgeExpired()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         shakeMonitor.stop()
+        archivePurgeTimer?.invalidate()
     }
 
     private func handleShake(at location: CGPoint) {
@@ -57,6 +69,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "MaracaShelf", action: nil, keyEquivalent: "").isEnabled = false
         menu.addItem(.separator())
 
+        let archiveItem = menu.addItem(withTitle: "", action: #selector(openArchive), keyEquivalent: "")
+        archiveItem.target = self
+        archiveMenuItem = archiveItem
+
         let settingsItem = menu.addItem(withTitle: "", action: #selector(openSettings), keyEquivalent: "")
         settingsItem.target = self
         settingsMenuItem = settingsItem
@@ -64,6 +80,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let accessibilityItem = menu.addItem(withTitle: "", action: #selector(openAccessibilitySettings), keyEquivalent: "")
         accessibilityItem.target = self
         accessibilityMenuItem = accessibilityItem
+
+        menu.addItem(.separator())
+
+        let uninstallItem = menu.addItem(withTitle: "", action: #selector(uninstallTapped), keyEquivalent: "")
+        uninstallItem.target = self
+        uninstallMenuItem = uninstallItem
 
         menu.addItem(.separator())
 
@@ -77,8 +99,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func refreshMenuTitles() {
+        archiveMenuItem?.title = L("menu.show_archive")
         settingsMenuItem?.title = L("menu.settings")
         accessibilityMenuItem?.title = L("menu.accessibility")
+        uninstallMenuItem?.title = L("menu.uninstall")
         quitMenuItem?.title = L("menu.quit")
     }
 
@@ -108,6 +132,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSImage(systemSymbolName: "shippingbox", accessibilityDescription: "MaracaShelf")
     }
 
+    @objc private func openArchive() {
+        let controller = archiveWindowController ?? ArchiveWindowController()
+        archiveWindowController = controller
+        controller.show()
+    }
+
     @objc private func openSettings() {
         let controller = settingsWindowController ?? SettingsWindowController()
         settingsWindowController = controller
@@ -117,6 +147,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openAccessibilitySettings() {
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
         NSWorkspace.shared.open(url)
+    }
+
+    @objc private func uninstallTapped() {
+        let alert = NSAlert()
+        alert.messageText = L("uninstall.confirm_title")
+        alert.informativeText = L("uninstall.confirm_message")
+        alert.addButton(withTitle: L("uninstall.confirm_button"))
+        alert.addButton(withTitle: L("uninstall.cancel_button"))
+        alert.alertStyle = .warning
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        try? FileManager.default.removeItem(at: ArchiveStorage.supportDirectory)
+        // Wait for the actual Trash move to finish before terminating — quitting the
+        // process immediately after kicking off recycle() risks cutting the async
+        // operation short and leaving the .app bundle in a half-moved state.
+        NSWorkspace.shared.recycle([Bundle.main.bundleURL]) { _, _ in
+            NSApp.terminate(nil)
+        }
     }
 
     @objc private func quit() {

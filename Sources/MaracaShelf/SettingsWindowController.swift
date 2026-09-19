@@ -20,12 +20,23 @@ final class SettingsWindowController: NSWindowController {
     private let languageTitleLabel = NSTextField(labelWithString: "")
     private let languagePopUp = NSPopUpButton(frame: .zero, pullsDown: false)
 
+    private let storageTitleLabel = NSTextField(labelWithString: "")
+    private let storageSubtitleLabel = NSTextField(wrappingLabelWithString: "")
+    private let storageSlider = NSSlider(
+        value: Double(ArchiveRetentionSettings.days),
+        minValue: Double(ArchiveRetentionSettings.minValue),
+        maxValue: Double(ArchiveRetentionSettings.maxValue),
+        target: nil, action: nil
+    )
+    private let storageReadoutLabel = NSTextField(labelWithString: "")
+    private let clearArchiveButton = PillButton(title: "")
+
     /// Index 0 is always "System" (nil override); the rest mirror `AppLanguage.allCases`.
     private let languageOptions: [AppLanguage?] = [nil] + AppLanguage.allCases
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 360, height: 296),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 474),
             styleMask: [.borderless, .resizable],
             backing: .buffered,
             defer: false
@@ -116,9 +127,35 @@ final class SettingsWindowController: NSWindowController {
         let divider = NSBox()
         divider.boxType = .separator
 
+        storageTitleLabel.font = .systemFont(ofSize: 11, weight: .semibold)
+        storageTitleLabel.textColor = .white.withAlphaComponent(0.65)
+
+        storageSubtitleLabel.font = .systemFont(ofSize: 12)
+        storageSubtitleLabel.textColor = .white.withAlphaComponent(0.65)
+        storageSubtitleLabel.alignment = .center
+
+        storageSlider.target = self
+        storageSlider.action = #selector(storageSliderChanged)
+        storageSlider.isContinuous = true
+        storageSlider.numberOfTickMarks = ArchiveRetentionSettings.maxValue - ArchiveRetentionSettings.minValue + 1
+        storageSlider.allowsTickMarkValuesOnly = true
+
+        storageReadoutLabel.font = .boldSystemFont(ofSize: 12)
+        storageReadoutLabel.textColor = .white
+        storageReadoutLabel.alignment = .center
+
+        clearArchiveButton.target = self
+        clearArchiveButton.action = #selector(clearArchiveTapped)
+        let clearArchiveGlass = GlassChrome.control(cornerRadius: 13, content: clearArchiveButton)
+        clearArchiveGlass.translatesAutoresizingMaskIntoConstraints = false
+
+        let divider2 = NSBox()
+        divider2.boxType = .separator
+
         let stack = NSStackView(views: [
             titleLabel, subtitleLabel, slider, endpointsRow, readoutLabel, resetGlass,
             divider, languageTitleLabel, languagePopUp,
+            divider2, storageTitleLabel, storageSubtitleLabel, storageSlider, storageReadoutLabel, clearArchiveGlass,
         ])
         stack.orientation = .vertical
         stack.alignment = .centerX
@@ -131,6 +168,10 @@ final class SettingsWindowController: NSWindowController {
         stack.setCustomSpacing(18, after: resetGlass)
         stack.setCustomSpacing(6, after: divider)
         stack.setCustomSpacing(6, after: languageTitleLabel)
+        stack.setCustomSpacing(18, after: languagePopUp)
+        stack.setCustomSpacing(6, after: divider2)
+        stack.setCustomSpacing(16, after: storageSubtitleLabel)
+        stack.setCustomSpacing(4, after: storageSlider)
 
         chromeContent.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -151,6 +192,9 @@ final class SettingsWindowController: NSWindowController {
             endpointsRow.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
             divider.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
             languagePopUp.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            divider2.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            storageSubtitleLabel.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
+            storageSlider.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -48),
         ])
     }
 
@@ -173,8 +217,28 @@ final class SettingsWindowController: NSWindowController {
         LocalizationManager.shared.userOverride = languageOptions[languagePopUp.indexOfSelectedItem]
     }
 
+    @objc private func storageSliderChanged() {
+        ArchiveRetentionSettings.days = Int(storageSlider.doubleValue.rounded())
+        updateStorageReadout()
+    }
+
+    @objc private func clearArchiveTapped() {
+        let alert = NSAlert()
+        alert.messageText = L("archive.clear_confirm_title")
+        alert.informativeText = L("archive.clear_confirm_message")
+        alert.addButton(withTitle: L("archive.clear_confirm_button"))
+        alert.addButton(withTitle: L("archive.cancel_button"))
+        alert.alertStyle = .warning
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        ArchiveStorage.clearAll()
+    }
+
     private func updateReadout() {
         readoutLabel.stringValue = String(format: L("settings.readout"), Int(ShakeSensitivity.value * 100))
+    }
+
+    private func updateStorageReadout() {
+        storageReadoutLabel.stringValue = LocalizationManager.shared.retentionDaysLabel(ArchiveRetentionSettings.days)
     }
 
     /// Re-applies every piece of text in the window — called on first build and whenever
@@ -189,6 +253,11 @@ final class SettingsWindowController: NSWindowController {
         resetButton.setTitle(L("settings.reset"))
         languageTitleLabel.stringValue = L("settings.language_title")
         updateReadout()
+
+        storageTitleLabel.stringValue = L("settings.storage_title")
+        storageSubtitleLabel.stringValue = L("settings.storage_subtitle")
+        clearArchiveButton.setTitle(L("settings.storage_clear_now"))
+        updateStorageReadout()
 
         languagePopUp.removeAllItems()
         let systemLabel = "\(L("settings.language_system")) (\(LocalizationManager.shared.currentLanguage.nativeName))"

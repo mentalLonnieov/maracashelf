@@ -1,6 +1,8 @@
 /* Status bar menu */
+"menu.show_archive" = "Показати архів…";
 "menu.settings" = "Налаштування…";
 "menu.accessibility" = "Відкрити налаштування спеціальних можливостей…";
+"menu.uninstall" = "Видалити MaracaShelf…";
 "menu.quit" = "Вийти";
 
 /* Shelf */
@@ -10,6 +12,21 @@
 "files.few" = "%d файли";
 "files.many" = "%d файлів";
 "files.other" = "%d файлу";
+
+/* Archive */
+"archive.window_title" = "Архів";
+"archive.empty" = "Поки що немає файлів";
+"archive.clear_now" = "Очистити архів";
+"archive.clear_confirm_title" = "Очистити архів?";
+"archive.clear_confirm_message" = "Усі файли, що зберігаються тут, будуть видалені безповоротно.";
+"archive.clear_confirm_button" = "Очистити архів";
+"archive.cancel_button" = "Скасувати";
+
+/* Uninstall */
+"uninstall.confirm_title" = "Видалити MaracaShelf?";
+"uninstall.confirm_message" = "Архів буде видалено, а MaracaShelf.app переміщено в Кошик. Цю дію не можна скасувати.";
+"uninstall.confirm_button" = "Видалити";
+"uninstall.cancel_button" = "Скасувати";
 
 /* Settings window */
 "settings.window_title" = "Налаштування";
@@ -21,3 +38,10 @@
 "settings.reset" = "Скинути";
 "settings.language_title" = "Мова інтерфейсу";
 "settings.language_system" = "Системна";
+"settings.storage_title" = "Сховище";
+"settings.storage_subtitle" = "Як довго файли зберігаються в архіві, перш ніж видалятися автоматично";
+"settings.storage_clear_now" = "Очистити архів зараз";
+"storage.days.one" = "%d день";
+"storage.days.few" = "%d дні";
+"storage.days.many" = "%d днів";
+"storage.days.other" = "%d дня";

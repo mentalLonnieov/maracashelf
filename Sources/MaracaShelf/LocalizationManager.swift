@@ -71,6 +71,18 @@ final class LocalizationManager {
         }
         return String(format: string(key), count)
     }
+
+    /// An "N days" style string, pluralized correctly for the current language.
+    func retentionDaysLabel(_ days: Int) -> String {
+        let key: String
+        switch Pluralizer.category(for: days, language: currentLanguage) {
+        case .one: key = "storage.days.one"
+        case .few: key = "storage.days.few"
+        case .many: key = "storage.days.many"
+        case .other: key = "storage.days.other"
+        }
+        return String(format: string(key), days)
+    }
 }
 
 /// Shorthand for `LocalizationManager.shared.string(_:)`.

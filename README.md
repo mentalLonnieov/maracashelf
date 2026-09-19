@@ -125,6 +125,23 @@ Czech each have their own distinct variant. Verified by print-checking `fileCoun
 n ∈ {0, 1, 2, 5, 11, 21, 22} against every language's real grammar rather than trusting the
 formulas by inspection alone.
 
+## Archive
+
+Every file that passes through the shelf is also copied into a persistent archive
+(`~/Library/Application Support/MaracaShelf/Archive`) — separate from the shelf's own
+per-session temp copies, and unaffected by closing the shelf or quitting the app. Open it
+from the menu icon's "Show Archive…" item to browse what's there, drag files back out into
+another app, or remove individual ones.
+
+By default, archived files are deleted automatically after 7 days. Change that window
+(1–30 days) from the settings window's new "Storage" section, or clear the archive
+immediately with "Clear Archive Now" there (or the archive window's own "Clear Archive"
+button). The archive is only ever removed by expiry, a manual clear, or fully uninstalling
+MaracaShelf via the menu icon's "Uninstall MaracaShelf…" item — which deletes it and moves
+`MaracaShelf.app` to the Trash. (macOS has no hook for "the user just dragged this app to
+the Trash themselves," so a plain drag-to-Trash leaves the archive folder behind; the
+in-app Uninstall action is the only way to remove both together.)
+
 ## Required permission
 
 For the app to see mouse movement while you're dragging a file **from another app**
@@ -205,6 +222,19 @@ of being fixed forever.
   of course the original untouched.
 - If the app happens to crash or gets force-quit with the shelf open, leftover temp copies
   from the previous session are cleaned up on the next launch.
+- Every file added to the shelf is also copied into a separate, persistent `ArchiveStorage`
+  folder (`~/Library/Application Support/MaracaShelf/Archive`) — one UUID-named subfolder
+  per file, so identical filenames from different sessions never collide. This is
+  intentionally independent of `ShelfStorage`'s per-session temp copy: the temp copy is
+  deleted the moment that shelf closes, the archive copy is not.
+  `ArchiveStorage.purgeExpired()` deletes archive entries older than
+  `ArchiveRetentionSettings.days` (default 7, 1–30 range) based on each folder's creation
+  date — run on launch, hourly via a repeating `Timer`, and whenever the archive window
+  opens, so it stays current even across a multi-day run with no relaunch.
+- "Uninstall MaracaShelf…" (status bar menu) deletes the whole Application Support folder
+  and moves the running `.app` bundle to the Trash via `NSWorkspace.recycle(_:)` — waiting
+  for its completion handler before calling `NSApp.terminate(nil)`, since quitting
+  immediately after kicking off that async move risks cutting it short.
 - Collapsing/expanding animates `NSWindow.setFrame` directly. The glass panel
   (`GlassChrome.panel`) is assigned as the window's `contentView` literally (no view in
   between) — that's the only AppKit relationship guaranteed to track an animated `setFrame`

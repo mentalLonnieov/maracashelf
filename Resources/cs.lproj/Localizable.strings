@@ -1,6 +1,8 @@
 /* Status bar menu */
+"menu.show_archive" = "Zobrazit archiv…";
 "menu.settings" = "Nastavení…";
 "menu.accessibility" = "Otevřít nastavení usnadnění…";
+"menu.uninstall" = "Odinstalovat MaracaShelf…";
 "menu.quit" = "Ukončit";
 
 /* Shelf */
@@ -10,6 +12,21 @@
 "files.few" = "%d soubory";
 "files.many" = "%d souborů";
 "files.other" = "%d souborů";
+
+/* Archive */
+"archive.window_title" = "Archiv";
+"archive.empty" = "Zatím žádné soubory";
+"archive.clear_now" = "Vymazat archiv";
+"archive.clear_confirm_title" = "Vymazat archiv?";
+"archive.clear_confirm_message" = "Všechny soubory uložené zde budou trvale odstraněny.";
+"archive.clear_confirm_button" = "Vymazat archiv";
+"archive.cancel_button" = "Zrušit";
+
+/* Uninstall */
+"uninstall.confirm_title" = "Odinstalovat MaracaShelf?";
+"uninstall.confirm_message" = "Archiv bude odstraněn a MaracaShelf.app přesunut do Koše. Tuto akci nelze vrátit zpět.";
+"uninstall.confirm_button" = "Odinstalovat";
+"uninstall.cancel_button" = "Zrušit";
 
 /* Settings window */
 "settings.window_title" = "Nastavení";
@@ -21,3 +38,10 @@
 "settings.reset" = "Obnovit";
 "settings.language_title" = "Jazyk rozhraní";
 "settings.language_system" = "Systémový";
+"settings.storage_title" = "Úložiště";
+"settings.storage_subtitle" = "Jak dlouho soubory zůstávají v archivu, než se automaticky odstraní";
+"settings.storage_clear_now" = "Vymazat archiv nyní";
+"storage.days.one" = "%d den";
+"storage.days.few" = "%d dny";
+"storage.days.many" = "%d dní";
+"storage.days.other" = "%d dní";
