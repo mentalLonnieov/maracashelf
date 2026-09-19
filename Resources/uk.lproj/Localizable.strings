@@ -5,6 +5,7 @@
 
 /* Shelf */
 "drop_hint" = "Перетягніть файли сюди";
+"shelf.select_all" = "Вибрати всі";
 "files.one" = "%d файл";
 "files.few" = "%d файли";
 "files.many" = "%d файлів";

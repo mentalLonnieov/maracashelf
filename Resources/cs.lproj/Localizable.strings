@@ -5,6 +5,7 @@
 
 /* Shelf */
 "drop_hint" = "Přetáhněte soubory sem";
+"shelf.select_all" = "Vybrat vše";
 "files.one" = "%d soubor";
 "files.few" = "%d soubory";
 "files.many" = "%d souborů";

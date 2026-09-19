@@ -5,6 +5,7 @@
 
 /* Shelf */
 "drop_hint" = "Перетащите файлы сюда";
+"shelf.select_all" = "Выбрать все";
 "files.one" = "%d файл";
 "files.few" = "%d файла";
 "files.many" = "%d файлов";

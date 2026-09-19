@@ -33,6 +33,7 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
     private let collapsedPreview = CollapsedPreviewRow()
     private var collectionView: NSCollectionView!
     private var scrollView: NSScrollView!
+    private var selectAllMenuItem: NSMenuItem!
 
     override func loadView() {
         // The glass panel IS this controller's view (and therefore the window's
@@ -139,6 +140,16 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
         // No local (same-app) operation: dropping an item back onto its own shelf must not
         // duplicate it. See ShelfDropView.isInternalDrag for the actual guard.
         collectionView.setDraggingSourceOperationMask([], forLocal: true)
+
+        // Cmd+A can't work here — the shelf panel never becomes key (see ShelfPanel), so
+        // it never receives keyboard events at all. A right-click menu is the mouse-only
+        // equivalent, useful once there are enough files that ⌘-clicking each one gets
+        // tedious.
+        let contextMenu = NSMenu()
+        let selectAllItem = contextMenu.addItem(withTitle: L("shelf.select_all"), action: #selector(selectAllTapped), keyEquivalent: "")
+        selectAllItem.target = self
+        selectAllMenuItem = selectAllItem
+        collectionView.menu = contextMenu
 
         scrollView = NSScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -297,6 +308,15 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
         let hasSelection = !collectionView.selectionIndexPaths.isEmpty
         airDropButton.isEnabled = hasSelection
         airDropGlass.alphaValue = hasSelection ? 1 : 0.35
+    }
+
+    @objc private func selectAllTapped() {
+        guard !items.isEmpty else { return }
+        let allIndexPaths = Set((0..<items.count).map { IndexPath(item: $0, section: 0) })
+        // Programmatic selection changes don't call the delegate's didSelectItemsAt, unlike
+        // an actual click — update the AirDrop button ourselves rather than relying on it.
+        collectionView.selectItems(at: allIndexPaths, scrollPosition: [])
+        updateAirDropButtonState()
     }
 
     @objc private func collapseTapped() {

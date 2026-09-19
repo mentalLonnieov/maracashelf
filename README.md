@@ -122,7 +122,10 @@ of being fixed forever.
 - Dragging a file OUT of the shelf hands the receiving app the path to that temp copy.
   Multi-select works with standard macOS gestures (⌘-click to add/remove a file from the
   selection, Shift-click to select a range) — dragging out of a selection sends every
-  selected file at once (`allowsMultipleSelection` on the `NSCollectionView`). There's no
+  selected file at once (`allowsMultipleSelection` on the `NSCollectionView`). Right-click
+  the grid for a "Select All" context menu item — ⌘A doesn't work here since the shelf
+  panel never becomes key (see `ShelfPanel`) and so never receives keyboard events at all;
+  a context menu is the mouse-only equivalent. There's no
   visible scroll indicator, but scrolling itself (wheel/trackpad/drag) works normally —
   `NSCollectionView` recreates/re-shows its own `NSScroller` on every layout pass regardless
   of `hasVerticalScroller`, so instead of a one-time setup its opacity is forced to zero on
@@ -174,7 +177,12 @@ of being fixed forever.
 - While collapsed, the empty space between the header and the pill is now filled by a row
   of small previews (`CollapsedPreviewRow`, up to 5 icons plus a "+N" for the rest) — only
   visible while `isCollapsed == true`, updated whenever files are added/removed and when
-  real previews finish loading via `ThumbnailLoader`.
+  real previews finish loading via `ThumbnailLoader`. There's no room for per-file
+  selection in this compact row, so pressing and dragging from *any* icon in it drags every
+  file in the shelf at once (`CollapsedPreviewRow` implements `NSDraggingSource` directly,
+  with manual `mouseDown`/`mouseDragged` tracking and a small movement threshold before the
+  drag session actually starts, building one cascaded `NSDraggingItem` per file) — the
+  collapsed state is a "grab the whole shelf" shortcut rather than a picker.
 - The transition between the grid and the preview row is animated: both stay visible
   (`isHidden` is only reapplied in the `completionHandler`, once opacity has actually
   reached 0) and crossfade via `animator().alphaValue` inside the same `NSAnimationContext`

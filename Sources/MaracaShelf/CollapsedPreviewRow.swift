@@ -2,10 +2,20 @@ import AppKit
 
 /// A compact row of small file icons shown only while the shelf is collapsed, so the
 /// pill-sized bar still gives a glance at what's actually inside instead of just a count.
-final class CollapsedPreviewRow: NSView {
+///
+/// There's no room here for per-file selection like the expanded grid has, so pressing and
+/// dragging from *any* icon just drags every file at once — the collapsed state is a
+/// "grab the whole shelf" shortcut, not a picker.
+final class CollapsedPreviewRow: NSView, NSDraggingSource {
     private let stack = NSStackView()
     private let maxVisible = 5
     private let iconSize: CGFloat = 28
+    /// How far the pointer has to move from mouseDown before it counts as a drag rather
+    /// than a click — avoids starting a drag session on every tiny mouse jitter.
+    private let dragStartThreshold: CGFloat = 4
+
+    private var items: [ShelfItem] = []
+    private var mouseDownEvent: NSEvent?
 
     /// Width/height constraints for each icon, kept around so the collapse/expand
     /// transition can animate them growing from or shrinking to nothing.
@@ -27,6 +37,7 @@ final class CollapsedPreviewRow: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     func update(with items: [ShelfItem]) {
+        self.items = items
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         iconSizeConstraints.removeAll()
 
@@ -80,5 +91,49 @@ final class CollapsedPreviewRow: NSView {
             pair.height.constant = 0
         }
         layoutSubtreeIfNeeded()
+    }
+
+    // MARK: - Drag out (grabs every file at once)
+
+    // The shelf panel never becomes key (see ShelfPanel), so this needs to respond to the
+    // very first click/drag instead of requiring the window to be focused first.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        mouseDownEvent = items.isEmpty ? nil : event
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let downEvent = mouseDownEvent else { return }
+        let dx = event.locationInWindow.x - downEvent.locationInWindow.x
+        let dy = event.locationInWindow.y - downEvent.locationInWindow.y
+        guard (dx * dx + dy * dy) > dragStartThreshold * dragStartThreshold else { return }
+        mouseDownEvent = nil // only start the session once per press
+
+        let anchor = convert(downEvent.locationInWindow, from: nil)
+        let cardSize = NSSize(width: 40, height: 40)
+        let cascadeStep: CGFloat = 6
+
+        let draggingItems: [NSDraggingItem] = items.enumerated().map { index, item in
+            let dragItem = NSDraggingItem(pasteboardWriter: item.tempURL as NSURL)
+            let offset = CGFloat(index) * cascadeStep
+            let frame = NSRect(
+                x: anchor.x - cardSize.width / 2 + offset,
+                y: anchor.y - cardSize.height / 2 - offset,
+                width: cardSize.width, height: cardSize.height
+            )
+            dragItem.setDraggingFrame(frame, contents: item.icon)
+            return dragItem
+        }
+
+        beginDraggingSession(with: draggingItems, event: downEvent, source: self)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        mouseDownEvent = nil
+    }
+
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        .copy
     }
 }
