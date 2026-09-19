@@ -211,3 +211,7 @@ of being fixed forever.
   case those need to become configurable too.
 - The project isn't sandboxed (App Sandbox), so no security-scoped bookmark export is
   needed — but it also can't be distributed through the Mac App Store as-is.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
