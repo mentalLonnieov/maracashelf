@@ -14,10 +14,17 @@ brew tap mentalLonnieov/maracashelf
 brew install --cask maracashelf
 ```
 
-Homebrew downloads files without setting the quarantine flag, so this usually skips the
-Gatekeeper warning described below entirely — no manual "Open Anyway" step needed. You'll
-still need to grant the Accessibility permission (see below); the system should prompt
-for it on first launch.
+This build is signed ad-hoc (no Apple Developer ID, not notarized), and Homebrew Cask
+applies the quarantine flag to installed apps just like a normal download would, so macOS
+will still block the first launch. Clear it with:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/MaracaShelf.app
+```
+
+(`brew install` prints this exact command at the end, with the real path filled in — you
+can copy it straight from there.) You'll also need to grant the Accessibility permission
+(see below); the system should prompt for it on first launch.
 
 To update or remove it later:
 
