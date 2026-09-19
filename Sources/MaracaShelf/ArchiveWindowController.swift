@@ -16,7 +16,7 @@ final class ArchiveWindowController: NSWindowController {
     private var scrollView: NSScrollView!
 
     convenience init() {
-        let window = NSWindow(
+        let window = KeyableBorderlessWindow(
             contentRect: NSRect(x: 0, y: 0, width: 270, height: 420),
             styleMask: [.borderless, .resizable],
             backing: .buffered,
@@ -44,6 +44,13 @@ final class ArchiveWindowController: NSWindowController {
         NotificationCenter.default.addObserver(
             self, selector: #selector(refreshLocalizedText),
             name: LocalizationManager.languageDidChangeNotification, object: nil
+        )
+        // Keeps this window in sync with mutations that don't originate from it — a file
+        // archived from a live shelf, "Clear Archive Now" in Settings, or the hourly
+        // expiry sweep — instead of showing stale entries/thumbnails until it's reopened.
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(reload),
+            name: ArchiveStorage.didChangeNotification, object: nil
         )
     }
 
@@ -159,12 +166,15 @@ final class ArchiveWindowController: NSWindowController {
         emptyLabel.stringValue = L("archive.empty")
     }
 
-    private func reload() {
+    @objc private func reload() {
         ArchiveStorage.purgeExpired()
-        entries = ArchiveStorage.loadEntries()
-        collectionView.reloadData()
-        emptyLabel.isHidden = !entries.isEmpty
-        loadThumbnails()
+        ArchiveStorage.loadEntries { [weak self] entries in
+            guard let self else { return }
+            self.entries = entries
+            self.collectionView.reloadData()
+            self.emptyLabel.isHidden = !entries.isEmpty
+            self.loadThumbnails()
+        }
     }
 
     private func loadThumbnails() {

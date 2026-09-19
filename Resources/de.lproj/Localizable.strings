@@ -27,6 +27,8 @@
 "uninstall.confirm_message" = "Das Archiv wird gelöscht und MaracaShelf.app in den Papierkorb verschoben. Dies kann nicht rückgängig gemacht werden.";
 "uninstall.confirm_button" = "Deinstallieren";
 "uninstall.cancel_button" = "Abbrechen";
+"uninstall.failed_title" = "MaracaShelf konnte nicht in den Papierkorb verschoben werden";
+"uninstall.failed_message" = "Das Archiv wurde nicht verändert. Verschiebe die App manuell in den Papierkorb und lösche anschließend ~/Library/Application Support/MaracaShelf.";
 
 /* Settings window */
 "settings.window_title" = "Einstellungen";

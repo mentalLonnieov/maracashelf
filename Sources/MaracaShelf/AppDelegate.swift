@@ -159,12 +159,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
-        try? FileManager.default.removeItem(at: ArchiveStorage.supportDirectory)
-        // Wait for the actual Trash move to finish before terminating — quitting the
-        // process immediately after kicking off recycle() risks cutting the async
-        // operation short and leaving the .app bundle in a half-moved state.
-        NSWorkspace.shared.recycle([Bundle.main.bundleURL]) { _, _ in
-            NSApp.terminate(nil)
+        let bundleURL = Bundle.main.bundleURL
+        // Running the raw executable directly (e.g. `swift run`, or the debug binary during
+        // development) rather than the packaged .app — there's nothing sensible to move to
+        // the Trash, so just drop the archive and quit instead of recycling an unexpected path.
+        guard bundleURL.pathExtension == "app" else {
+            ArchiveStorage.removeSupportForUninstall { NSApp.terminate(nil) }
+            return
+        }
+
+        // Move the app to the Trash FIRST and only delete the archive once that has
+        // actually succeeded — the previous order deleted the archive unconditionally
+        // before attempting the move, so a failed/denied Trash operation (surfaced only via
+        // the ignored `error` parameter) used to silently destroy the user's data while
+        // leaving the app installed. recycle()'s completion isn't guaranteed to run on the
+        // main thread, so both branches below dispatch back to it explicitly.
+        NSWorkspace.shared.recycle([bundleURL]) { _, error in
+            guard error == nil else {
+                DispatchQueue.main.async {
+                    let failure = NSAlert()
+                    failure.messageText = L("uninstall.failed_title")
+                    failure.informativeText = L("uninstall.failed_message")
+                    failure.alertStyle = .critical
+                    failure.runModal()
+                }
+                return
+            }
+            ArchiveStorage.removeSupportForUninstall {
+                NSApp.terminate(nil)
+            }
         }
     }
 

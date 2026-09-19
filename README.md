@@ -257,14 +257,19 @@ of being fixed forever.
   `ArchiveRetentionSettings.days` (default 7, 1–30 range) based on each folder's creation
   date — run on launch, hourly via a repeating `Timer`, and whenever the archive window
   opens, so it stays current even across a multi-day run with no relaunch.
-- The archive dedups by the same identity key as the live shelf, but persists it: each
-  archived folder gets a hidden `.maraca-source-key` sidecar file, and `archive(_:sourceKey:)`
-  skips creating a new copy if that key is already present in *any* existing folder — kept
-  out of `loadEntries()`'s directory listing via `.skipsHiddenFiles`. This is what makes
+- The archive dedups by the same identity key as the live shelf, but persists it in a
+  `<uuid>.maraca-source-key` sidecar beside each entry folder. Older archives with an
+  internal `.maraca-source-key` are still read and deduplicated correctly. User dotfiles
+  remain visible, including files named `.maraca-source-key` in the new format. This makes
   "remove from the shelf, then drag the same file back in" and "drag the same file into a
   new shake session weeks later" both reuse the one archive entry instead of piling up
   duplicates, since the check reads persisted disk state rather than any in-memory set
   scoped to a single shelf.
+- Copying and archive access run off the main thread. All archive requests share one
+  serial queue, and new entries are published by renaming a completed staging folder.
+  A file becomes interactive on the shelf after its archive operation finishes. Closing
+  the shelf hides it immediately, but temporary-file cleanup waits for all accepted
+  imports, including delayed file promises and their archive operations, to finish.
 - "Uninstall MaracaShelf…" (status bar menu) deletes the whole Application Support folder
   and moves the running `.app` bundle to the Trash via `NSWorkspace.recycle(_:)` — waiting
   for its completion handler before calling `NSApp.terminate(nil)`, since quitting

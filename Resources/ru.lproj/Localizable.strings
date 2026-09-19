@@ -27,6 +27,8 @@
 "uninstall.confirm_message" = "Архив будет удалён, а MaracaShelf.app перемещён в Корзину. Это действие необратимо.";
 "uninstall.confirm_button" = "Удалить";
 "uninstall.cancel_button" = "Отмена";
+"uninstall.failed_title" = "Не удалось переместить MaracaShelf в Корзину";
+"uninstall.failed_message" = "Архив не тронут. Попробуй перенести приложение в Корзину вручную, а затем удали ~/Library/Application Support/MaracaShelf.";
 
 /* Settings window */
 "settings.window_title" = "Настройки";

@@ -10,7 +10,14 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
 
     private let storage = ShelfStorage()
     private var items: [ShelfItem] = []
-    private let promiseQueue = OperationQueue()
+    // Tracks the entire import, including delayed promise callbacks and archive writes.
+    private let pendingImports = ImportLifetime()
+    private var isClosing = false
+    private let fileIOQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 1
+        return queue
+    }()
 
     /// Identity keys of files already added to this shelf — see `shelfDropView(performDrop:)`
     /// — so dragging the same file in again is rejected instead of piling up endless
@@ -210,6 +217,7 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
     }
 
     func shelfDropView(_ view: ShelfDropView, performDrop pasteboard: NSPasteboard) -> Bool {
+        guard !isClosing else { return false }
         let classes: [AnyClass] = [NSFilePromiseReceiver.self, NSURL.self]
         let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
         guard let objects = pasteboard.readObjects(forClasses: classes, options: options), !objects.isEmpty else {
@@ -231,14 +239,16 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
                 }
                 knownFileKeys.insert(key)
                 addedAny = true
+                // A receiver calls its reader once per promised file, including failures.
+                for _ in 0..<max(1, promiseReceiver.fileNames.count) { pendingImports.begin() }
                 promiseReceiver.receivePromisedFiles(
                     atDestination: storage.sessionDirectory,
                     options: [:],
-                    operationQueue: promiseQueue
-                ) { [weak self] fileURL, error in
-                    guard error == nil else { return }
+                    operationQueue: fileIOQueue
+                ) { fileURL, error in
                     DispatchQueue.main.async {
-                        self?.addItem(ShelfItem(displayName: fileURL.lastPathComponent, tempURL: fileURL), sourceKey: key)
+                        self.completeImport(url: error == nil ? fileURL : nil,
+                                            displayName: fileURL.lastPathComponent, key: key)
                     }
                 }
             } else if let url = object as? URL {
@@ -247,10 +257,19 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
                     flashExistingItem(for: key)
                     continue
                 }
-                guard let shelfItem = storage.copy(from: url) else { continue }
                 knownFileKeys.insert(key)
                 addedAny = true
-                addItem(shelfItem, sourceKey: key)
+                pendingImports.begin()
+                // The actual copy (and the ShelfItem it produces) happens off the main
+                // thread — see ShelfStorage.copyFile — so a large file/folder doesn't
+                // freeze the app or the drag session itself.
+                fileIOQueue.addOperation {
+                    let copied = self.storage.copyFile(from: url)
+                    DispatchQueue.main.async {
+                        self.completeImport(url: copied?.destination,
+                                            displayName: copied?.displayName ?? url.lastPathComponent, key: key)
+                    }
+                }
             }
         }
 
@@ -266,12 +285,26 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
         return addedAny
     }
 
+    private func completeImport(url: URL?, displayName: String, key: String) {
+        guard let url else {
+            knownFileKeys.remove(key)
+            pendingImports.finish()
+            return
+        }
+        ArchiveStorage.archive(url, sourceKey: key) {
+            DispatchQueue.main.async {
+                defer { self.pendingImports.finish() }
+                guard !self.isClosing else { return }
+                self.addItem(ShelfItem(displayName: displayName, tempURL: url), sourceKey: key)
+            }
+        }
+    }
+
     private func addItem(_ item: ShelfItem, sourceKey: String? = nil) {
         item.sourceKey = sourceKey
         items.append(item)
         collectionView.insertItems(at: [IndexPath(item: items.count - 1, section: 0)])
         refresh()
-        ArchiveStorage.archive(item.tempURL, sourceKey: item.sourceKey)
 
         ThumbnailLoader.loadThumbnail(for: item.tempURL, pointSize: 96) { [weak self, weak item] image in
             guard let self, let item, let index = self.items.firstIndex(where: { $0 === item }) else { return }
@@ -297,7 +330,9 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
         guard let index = items.firstIndex(where: { $0 === item }) else { return }
         items.remove(at: index)
         if let key = item.sourceKey { knownFileKeys.remove(key) }
-        try? FileManager.default.removeItem(at: item.tempURL)
+        // Items only become interactive after their archive operation has completed.
+        let url = item.tempURL
+        fileIOQueue.addOperation { try? FileManager.default.removeItem(at: url) }
         collectionView.deleteItems(at: [IndexPath(item: index, section: 0)])
         refresh()
         updateAirDropButtonState()
@@ -312,7 +347,12 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
     // MARK: - Actions
 
     @objc private func closeTapped() {
-        storage.cleanUp()
+        guard !isClosing else { return }
+        isClosing = true
+        let storage = self.storage
+        pendingImports.close {
+            storage.cleanUp()
+        }
         delegate?.shelfDidRequestClose(self)
     }
 

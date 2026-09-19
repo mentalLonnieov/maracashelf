@@ -27,6 +27,8 @@
 "uninstall.confirm_message" = "Архів буде видалено, а MaracaShelf.app переміщено в Кошик. Цю дію не можна скасувати.";
 "uninstall.confirm_button" = "Видалити";
 "uninstall.cancel_button" = "Скасувати";
+"uninstall.failed_title" = "Не вдалося перемістити MaracaShelf у Кошик";
+"uninstall.failed_message" = "Архів не зачеплено. Спробуй перемістити застосунок у Кошик вручну, а потім видали ~/Library/Application Support/MaracaShelf.";
 
 /* Settings window */
 "settings.window_title" = "Налаштування";

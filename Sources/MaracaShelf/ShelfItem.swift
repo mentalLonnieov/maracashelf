@@ -33,7 +33,12 @@ final class ShelfStorage {
     }
 
     /// Copies a source file into this session's temp directory, resolving name collisions.
-    func copy(from sourceURL: URL) -> ShelfItem? {
+    /// Pure `FileManager` I/O with no AppKit calls — safe to run off the main thread (a
+    /// synchronous copy of a large file/folder run directly from the drop handler would
+    /// otherwise freeze the whole app, and the drag session itself, until it finished).
+    /// Returns just the raw destination + name; callers construct the `ShelfItem` itself
+    /// (which looks up an `NSWorkspace` icon) back on the main thread.
+    func copyFile(from sourceURL: URL) -> (destination: URL, displayName: String)? {
         let baseName = sourceURL.lastPathComponent
         var destination = sessionDirectory.appendingPathComponent(baseName)
         var counter = 1
@@ -48,7 +53,7 @@ final class ShelfStorage {
         do {
             // Prefer a real copy; if the source disappears mid-shake, just skip it.
             try FileManager.default.copyItem(at: sourceURL, to: destination)
-            return ShelfItem(displayName: baseName, tempURL: destination)
+            return (destination, baseName)
         } catch {
             return nil
         }

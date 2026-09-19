@@ -27,6 +27,8 @@
 "uninstall.confirm_message" = "This deletes the archive and moves MaracaShelf.app to the Trash. This can't be undone.";
 "uninstall.confirm_button" = "Uninstall";
 "uninstall.cancel_button" = "Cancel";
+"uninstall.failed_title" = "Couldn't move MaracaShelf to the Trash";
+"uninstall.failed_message" = "The archive was left untouched. Try moving the app to the Trash yourself, then delete ~/Library/Application Support/MaracaShelf.";
 
 /* Settings window */
 "settings.window_title" = "Settings";

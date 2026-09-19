@@ -27,6 +27,8 @@
 "uninstall.confirm_message" = "Archiwum zostanie usunięte, a MaracaShelf.app przeniesiony do Kosza. Tej czynności nie można cofnąć.";
 "uninstall.confirm_button" = "Odinstaluj";
 "uninstall.cancel_button" = "Anuluj";
+"uninstall.failed_title" = "Nie udało się przenieść MaracaShelf do Kosza";
+"uninstall.failed_message" = "Archiwum pozostało nietknięte. Spróbuj przenieść aplikację do Kosza ręcznie, a następnie usuń ~/Library/Application Support/MaracaShelf.";
 
 /* Settings window */
 "settings.window_title" = "Ustawienia";

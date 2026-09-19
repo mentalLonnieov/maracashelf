@@ -8,6 +8,7 @@ let package = Package(
         .executableTarget(
             name: "MaracaShelf",
             path: "Sources/MaracaShelf"
-        )
+        ),
+        .testTarget(name: "MaracaShelfTests", dependencies: ["MaracaShelf"])
     ]
 )

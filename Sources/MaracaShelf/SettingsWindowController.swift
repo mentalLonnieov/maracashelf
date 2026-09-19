@@ -35,7 +35,7 @@ final class SettingsWindowController: NSWindowController {
     private let languageOptions: [AppLanguage?] = [nil] + AppLanguage.allCases
 
     convenience init() {
-        let window = NSWindow(
+        let window = KeyableBorderlessWindow(
             contentRect: NSRect(x: 0, y: 0, width: 360, height: 474),
             styleMask: [.borderless, .resizable],
             backing: .buffered,

@@ -27,6 +27,8 @@
 "uninstall.confirm_message" = "Archiv bude odstraněn a MaracaShelf.app přesunut do Koše. Tuto akci nelze vrátit zpět.";
 "uninstall.confirm_button" = "Odinstalovat";
 "uninstall.cancel_button" = "Zrušit";
+"uninstall.failed_title" = "Nepodařilo se přesunout MaracaShelf do Koše";
+"uninstall.failed_message" = "Archiv zůstal nedotčen. Zkus aplikaci přesunout do Koše ručně a poté smaž ~/Library/Application Support/MaracaShelf.";
 
 /* Settings window */
 "settings.window_title" = "Nastavení";
