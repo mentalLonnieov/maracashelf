@@ -5,7 +5,29 @@ forth, and a floating "shelf" appears right under the cursor, on top of every wi
 every desktop. Drop files into it, then drag them out of the shelf into any app. Close the
 shelf and every temporary copy is deleted — the originals are never touched.
 
-## Build and run
+## Installing
+
+Grab the latest `MaracaShelf-X.X.X.zip` from [Releases](https://github.com/mentalLonnieov/maracashelf/releases),
+then:
+
+1. Unzip it and move `MaracaShelf.app` wherever you like (`/Applications` is the usual
+   choice).
+2. **Bypass Gatekeeper.** This build is signed ad-hoc (no Apple Developer ID, not
+   notarized), so macOS blocks it on first launch. On recent macOS (Sequoia/Tahoe and
+   later), the classic right-click → Open trick often isn't enough by itself — instead:
+   - Try to open it (double-click). You'll get a "can't be opened" warning.
+   - Open **System Settings → Privacy & Security**, scroll down to the line about
+     "MaracaShelf" being blocked, and click **Open Anyway** (you may be asked for your
+     password or Touch ID).
+   - Or, more reliably regardless of macOS version, clear the quarantine flag yourself in
+     Terminal:
+     ```bash
+     xattr -d com.apple.quarantine /Applications/MaracaShelf.app
+     ```
+3. **Grant the Accessibility permission** — see below. The system should prompt for this
+   on first launch; if it doesn't, use the menu icon's "Open Accessibility Settings…" item.
+
+## Building from source
 
 ```bash
 Scripts/build_app.sh release
