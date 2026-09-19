@@ -8,7 +8,14 @@ final class ShelfPanel: NSPanel {
     init(contentRect: NSRect) {
         super.init(
             contentRect: contentRect,
-            styleMask: [.borderless, .nonactivatingPanel, .resizable],
+            // No .resizable: every size change (collapse/expand, peek) is done
+            // programmatically via setFrame, which works regardless of this style mask bit
+            // — it only gates *user-facing* resize affordances. Removing it is also what
+            // stops macOS's window-tiling gesture (Sequoia+: drag a window to a screen edge
+            // to snap it to half/full screen) from kicking in while dragging this panel by
+            // its background — tiling only offers itself to windows the user could actually
+            // resize in the first place.
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )

@@ -154,6 +154,16 @@ MaracaShelf via the menu icon's "Uninstall MaracaShelf…" item — which delete
 the Trash themselves," so a plain drag-to-Trash leaves the archive folder behind; the
 in-app Uninstall action is the only way to remove both together.)
 
+## Peeking to the edge
+
+Drag the shelf (by its background, not a button) to the left or right edge of the screen
+and let go — like Safari's Picture-in-Picture window, it slides away to a small tab with an
+arrow, out of the way but still there. Click the tab, or grab it and drag it back out,
+either one brings the shelf back exactly where it was. Peeking never touches what's in the
+shelf — files, the archive copies, all of it are exactly as they were when it's pulled back
+out. It's a purely visual hideaway, not a save/close; closing it for real still needs the
+"×" button, which isn't reachable while peeked (pull it back out first).
+
 ## Required permission
 
 For the app to see mouse movement while you're dragging a file **from another app**
@@ -349,6 +359,43 @@ of being fixed forever.
   level (`.statusBar`/`.screenSaver`) was tried as an alternative fix for the same issue —
   it didn't actually solve it, and `.screenSaver` additionally broke drag & drop (very high
   levels are excluded from drag-destination hit-testing), so the level stays `.floating`.
+- `ShelfPanel`'s `styleMask` deliberately excludes `.resizable`. Every size change the shelf
+  ever makes (collapse/expand, peek) is done programmatically via `setFrame`, which isn't
+  gated by that bit — it only affects *user-facing* resize affordances. One of those
+  affordances turned out to be macOS's window-tiling gesture (Sequoia and later: drag a
+  window to a screen edge to snap it to half/full screen), which was firing while dragging
+  the panel by its background — tiling only offers itself to windows the user could actually
+  resize by hand, so removing `.resizable` (verified to leave `setFrame` fully unaffected)
+  was enough to stop it without touching the dragging or peek logic at all.
+- Peeking (see above) is detected by a local `NSEvent` monitor on `.leftMouseDown`/
+  `.leftMouseUp` in `ShelfWindowController` — a local monitor is enough since this only ever
+  needs to see drags of our own panel, unlike `ShakeDragMonitor`, which has to see drags over
+  *other* apps' windows too. A drag counts if the panel's frame actually changed between
+  down and up (excludes plain clicks on a button or grid item) and ends within 40pt of a
+  screen edge — that check only has an upper bound on the gap, not a lower one, so it fires
+  the same way whether the drag stopped right at the edge or carried on well past it. The
+  frame captured to restore to is clamped back onto the screen (the same helper
+  `ShelfWindowController.frame(for:width:height:)` already used for the shake-triggered
+  initial placement) before being stored, rather than being kept as dragged — otherwise a
+  drag that overshot the edge would restore the shelf still mostly off-screen instead of
+  visually back where it was. Entering/exiting peek swaps `panel.contentView` between the normal
+  `ShelfViewController.view` and a small separate glass view (`PeekTabView`) rather than
+  trying to shrink the normal content down to tab size in place — `isHidden` doesn't
+  deactivate a view's own Auto Layout constraints outside of `NSStackView`, and several of
+  the normal content's children have hard minimums well over the 40pt tab width
+  (`dropHintLabel`'s fixed 180pt width constraint, `countPill`'s intrinsic content size), so
+  they'd keep fighting a target frame that small. The `contentView` swap and the frame
+  change both happen while the panel is faded to fully transparent (a quick alpha animation
+  down, then up again) rather than being animated directly — animating the frame while
+  swapping to the tiny content would flash it stretched to the still-large window for a
+  frame first, and animating it while the normal content is still attached hits the same
+  "children reflow only once Auto Layout settles" lag `collapsedHeight` was tuned around,
+  except worse (that content was never built to fit 40pt wide at all). Peeking never touches
+  `ShelfStorage`/`ArchiveStorage` or the `items` array — it's purely a window position and
+  `contentView` swap, so everything already in the shelf is untouched regardless of how long
+  it stays peeked. `PeekTabView` overrides `mouseDown`/`mouseDragged` as no-ops and only acts
+  on `mouseUp`, deliberately not distinguishing a click from a drag — both should restore the
+  shelf, and by the time `mouseUp` fires it no longer matters which one happened.
 
 ## Known limitations
 
