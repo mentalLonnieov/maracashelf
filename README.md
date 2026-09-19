@@ -7,6 +7,19 @@ shelf and every temporary copy is deleted — the originals are never touched.
 
 ## Installing
 
+### Via Homebrew
+
+```bash
+brew tap mentalLonnieov/maracashelf
+brew install --cask maracashelf
+```
+
+The quarantine flag isn't set on files Homebrew downloads, so this usually skips the
+Gatekeeper warning below entirely. You'll still need to grant the Accessibility
+permission (step 3 below).
+
+### Manually
+
 Grab the latest `MaracaShelf-X.X.X.zip` from [Releases](https://github.com/mentalLonnieov/maracashelf/releases),
 then:
 
