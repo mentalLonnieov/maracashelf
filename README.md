@@ -396,6 +396,20 @@ of being fixed forever.
   it stays peeked. `PeekTabView` overrides `mouseDown`/`mouseDragged` as no-ops and only acts
   on `mouseUp`, deliberately not distinguishing a click from a drag — both should restore the
   shelf, and by the time `mouseUp` fires it no longer matters which one happened.
+- A reported bug had a fast/far drag to the edge leave the shelf peeked in *content* (the
+  tab's chevron showing) but still full-size, instead of shrunk to the tab. It couldn't be
+  reproduced by directly teleporting the panel to an overshot position and calling the same
+  edge-check code (tried well past the point where the earlier off-screen-restore bug
+  reproduced), which points at something specific to `isMovableByWindowBackground`'s own
+  live drag-tracking rather than the edge-check math itself — most likely its drag-session
+  finalization still wrapping up around the same `mouseUp` our local monitor observes (a
+  monitor sees the event stream alongside whatever else handles it, not strictly after), and
+  reasserting the pre-drag frame size right after ours took effect for a fast/far drag
+  specifically. The fix is two-part and unverified against the original report (no way to
+  simulate a real live drag to confirm): `evaluateEdgeSnap()` is now dispatched a runloop
+  turn later from the `mouseUp` handler instead of called inline, so that finalization gets
+  a chance to finish first, and `enterPeek` re-asserts the tab frame once more ~0.2s later if
+  it doesn't already match — a no-op if the first attempt stuck, a correction if it didn't.
 
 ## Known limitations
 

@@ -98,7 +98,17 @@ final class ShelfWindowController: NSObject, ShelfViewControllerDelegate {
             // of the header buttons, or on a grid item, never moves the window, so this
             // naturally excludes those without needing to inspect what was actually clicked.
             guard let startFrame = mouseDownFrame, startFrame != panel.frame else { return }
-            evaluateEdgeSnap()
+            // Deferred a tick rather than evaluated immediately: isMovableByWindowBackground
+            // runs its own drag-session finalization around this same mouseUp, and a local
+            // monitor observes the event stream alongside that, not strictly after it — for
+            // a fast/far drag, that finalization landing after our own frame change was the
+            // likely cause of a real reported bug where the shelf peeked in content but
+            // stayed full-size (its origin moved, matching whatever the drag's own
+            // finalization decided, but the size got reasserted back to the pre-drag value
+            // right after ours took effect). Letting that finish first avoids the race.
+            DispatchQueue.main.async { [weak self] in
+                self?.evaluateEdgeSnap()
+            }
         default:
             break
         }
@@ -152,6 +162,13 @@ final class ShelfWindowController: NSObject, ShelfViewControllerDelegate {
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.15
                 panel.animator().alphaValue = 1
+            }
+            // Belt-and-suspenders re-assertion in case something (see the comment on the
+            // mouseUp handler above) still stomps on the frame shortly after this method
+            // returns — a cheap no-op if the size already stuck, a correction if it didn't.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                guard let self, self.isPeeked, let panel = self.panel, panel.frame.size != tabFrame.size else { return }
+                panel.setFrame(tabFrame, display: true)
             }
         })
     }
