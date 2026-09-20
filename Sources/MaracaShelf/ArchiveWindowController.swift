@@ -55,7 +55,8 @@ final class ArchiveWindowController: NSWindowController {
     }
 
     private func buildUI() {
-        guard let root = window?.contentView else { return }
+        guard let window else { return }
+        let initialBounds = window.contentView?.bounds ?? .zero
 
         let chromeContent = NSView()
         let glassPanel = GlassChrome.panel(cornerRadius: 22, content: chromeContent)
@@ -64,8 +65,14 @@ final class ArchiveWindowController: NSWindowController {
         // shelf's does during its collapse/expand animation.
         glassPanel.translatesAutoresizingMaskIntoConstraints = true
         glassPanel.autoresizingMask = [.width, .height]
-        glassPanel.frame = root.bounds
-        root.addSubview(glassPanel)
+        glassPanel.frame = initialBounds
+        // Assigned directly as the window's own contentView (matching how ShelfPanel's
+        // rounded glass panel *is* its contentView) rather than added as a subview of the
+        // default one — see SettingsWindowController for why: the default content view's
+        // plain rectangular bounds, not our rounded glass sitting inside it, is what the
+        // WindowServer used to draw the key-window highlight once this window (deliberately
+        // key-able, unlike ShelfPanel) actually became key.
+        window.contentView = glassPanel
 
         closeButton.target = self
         closeButton.action = #selector(closeTapped)
@@ -93,6 +100,13 @@ final class ArchiveWindowController: NSWindowController {
         collectionView = NSCollectionView()
         collectionView.collectionViewLayout = layout
         collectionView.backgroundColors = [.clear]
+        // Unlike the shelf's own grid, this window is deliberately key-able (see
+        // KeyableBorderlessWindow) — which means when it becomes key, AppKit needs *some*
+        // view to be first responder, and an NSCollectionView with nothing else claiming
+        // that status is a natural candidate. Since it fills nearly the whole window, the
+        // default blue focus ring it draws around itself looked like an outline around the
+        // whole card instead of the small "one control" ring it's meant to be.
+        collectionView.focusRingType = .none
         collectionView.isSelectable = true
         collectionView.allowsMultipleSelection = true
         collectionView.dataSource = self

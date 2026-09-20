@@ -268,6 +268,23 @@ of being fixed forever.
   to disable for good (meaning sheet-hosting goes through a separate code path, not tied to
   ordinary key status). So only `sourceFrameOnScreenForShareItem` is used (the AirDrop
   button's on-screen frame, with no window attached) — no ring, and no top-of-screen slide.
+- A related but structurally distinct issue showed up in both Settings and the archive
+  window: both use `KeyableBorderlessWindow` and *do* become key on purpose (stock controls
+  like `NSSlider`/`NSPopUpButton` need real key status for their first click to register at
+  all), unlike `ShelfPanel`, which never becomes key at all. Once one of them actually
+  became key, its rounded glass card showed a rectangular black highlight poking out past
+  its own rounded corners — a first guess (`collectionView.focusRingType = .none`, to rule
+  out the collection view drawing its own focus ring as first responder) turned out not to
+  be it, since the *same* thing happened in Settings, which has no collection view at all.
+  The real cause: both controllers built their glass panel as a *subview* of the window's
+  default `contentView` (`root.addSubview(glassPanel)`) rather than assigning it as the
+  content view directly, unlike `ShelfPanel`, whose rounded glass panel *is*
+  `ShelfViewController.view`, assigned straight to `panel.contentView`. That default content
+  view is a plain rectangular `NSView`, and its rectangle — not the visually rounded glass
+  merely sitting inside it — is what the WindowServer uses to draw the key-window highlight;
+  since it only actually became visible once these windows (deliberately) became key, it
+  went unnoticed until then. Assigning the glass panel as `window.contentView` directly,
+  matching `ShelfPanel`'s approach, fixed both.
 - The "×" button on the panel itself deletes the whole session's temp folder and closes the
   panel. For a single file (say, the wrong one got dragged in), hovering over its preview
   reveals a small "×" badge in the corner — it removes only that file, leaving the rest and

@@ -62,15 +62,23 @@ final class SettingsWindowController: NSWindowController {
     }
 
     private func buildUI() {
-        guard let root = window?.contentView else { return }
+        guard let window else { return }
+        let initialBounds = window.contentView?.bounds ?? .zero
 
         let chromeContent = NSView()
         let glassPanel = GlassChrome.panel(cornerRadius: 22, content: chromeContent)
         // Autoresizing, not Auto Layout — see GlassChrome.pin for why.
         glassPanel.translatesAutoresizingMaskIntoConstraints = true
         glassPanel.autoresizingMask = [.width, .height]
-        glassPanel.frame = root.bounds
-        root.addSubview(glassPanel)
+        glassPanel.frame = initialBounds
+        // Assigned directly as the window's own contentView (matching how ShelfPanel's
+        // rounded glass panel *is* its contentView) rather than added as a subview of the
+        // default one. The default content view is a plain rectangular NSView, and that
+        // rectangle — not our visually rounded glass sitting inside it — is apparently what
+        // the WindowServer uses to draw the key-window highlight; since this window
+        // deliberately does become key (unlike ShelfPanel), that highlight was drawn around
+        // the full window frame and poked out past the rounded corners once it did.
+        window.contentView = glassPanel
 
         closeButton.target = self
         closeButton.action = #selector(closeTapped)
