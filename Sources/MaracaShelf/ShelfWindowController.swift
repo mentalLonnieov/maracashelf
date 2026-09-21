@@ -19,8 +19,15 @@ final class ShelfWindowController: NSObject, ShelfViewControllerDelegate {
     private lazy var peekTab: PeekTabView = {
         let tab = PeekTabView(frame: NSRect(origin: .zero, size: peekTabSize))
         tab.onActivate = { [weak self] in self?.exitPeek() }
+        tab.onDragHover = { [weak self] in self?.handleDragHoverOnPeekTab() }
         return tab
     }()
+    // Armed right when a drag hovering over the peek tab expands the shelf back out, so a
+    // completed drop can re-peek it automatically afterward — but only that specific drop,
+    // not any later one. Self-expires after a few seconds so an aborted drag (hovered, then
+    // dragged away without ever dropping) can't leave this armed for some unrelated drop
+    // long afterward.
+    private var reEnterPeekAfterDrop: DispatchWorkItem?
     // A completely separate small content view, swapped in for `controller.view` while
     // peeked, rather than trying to shrink the normal content down to tab size in place.
     // The normal layout has several children with hard minimums that don't shrink that far
@@ -173,6 +180,17 @@ final class ShelfWindowController: NSObject, ShelfViewControllerDelegate {
         })
     }
 
+    /// A file is being dragged toward the peek tab — expand the shelf back out so it can
+    /// actually be dropped somewhere, the same as clicking or dragging the tab does, and
+    /// arm re-peeking once that drop lands (see `shelfDidCompleteDrop`).
+    private func handleDragHoverOnPeekTab() {
+        guard isPeeked else { return }
+        let workItem = DispatchWorkItem { [weak self] in self?.reEnterPeekAfterDrop = nil }
+        reEnterPeekAfterDrop = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: workItem)
+        exitPeek()
+    }
+
     /// Restores the shelf to exactly where it was before peeking, via the same
     /// fade-through-invisible swap `enterPeek` uses.
     private func exitPeek() {
@@ -210,6 +228,20 @@ final class ShelfWindowController: NSObject, ShelfViewControllerDelegate {
         frame.origin.x = max(visible.minX + 8, min(frame.origin.x, visible.maxX - frame.width - 8))
         frame.origin.y = max(visible.minY + 8, min(frame.origin.y, visible.maxY - frame.height - 8))
         return frame
+    }
+
+    /// Re-peeks the shelf if (and only if) this drop is the one a peek-tab hover expanded
+    /// the shelf to receive — an ordinary drop into an already-open shelf leaves it alone.
+    func shelfDidCompleteDrop(_ controller: ShelfViewController) {
+        guard let workItem = reEnterPeekAfterDrop else { return }
+        workItem.cancel()
+        reEnterPeekAfterDrop = nil
+        // A short pause so the dropped file's arrival (the haptic tap, the new thumbnail) is
+        // actually visible for a moment before the shelf hides itself again, rather than
+        // vanishing the instant the drop registers.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.evaluateEdgeSnap()
+        }
     }
 
     func shelfDidRequestClose(_ controller: ShelfViewController) {

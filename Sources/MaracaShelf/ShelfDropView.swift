@@ -10,6 +10,17 @@ protocol ShelfDropViewDelegate: AnyObject {
 final class ShelfDropView: NSView {
     weak var dropDelegate: ShelfDropViewDelegate?
 
+    /// Every pasteboard type the shelf accepts incoming files from — shared with any other
+    /// view that needs to register as a drag destination for the same kinds of drops
+    /// (`CollapsedPreviewRow` forwards instead of registering its own, but `PeekTabView`
+    /// needs to actually register, since it must react to a hover before anything is
+    /// dropped, not just forward a drop that already landed).
+    static let incomingDragTypes: [NSPasteboard.PasteboardType] = {
+        var types: [NSPasteboard.PasteboardType] = [.fileURL]
+        types.append(contentsOf: NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
+        return types
+    }()
+
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         guard !isInternalDrag(sender) else { return [] }
         return sender.draggingPasteboard.canReadObject(forClasses: [NSFilePromiseReceiver.self, NSURL.self], options: nil)

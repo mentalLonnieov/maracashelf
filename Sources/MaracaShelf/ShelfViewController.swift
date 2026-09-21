@@ -2,6 +2,10 @@ import AppKit
 
 protocol ShelfViewControllerDelegate: AnyObject {
     func shelfDidRequestClose(_ controller: ShelfViewController)
+    /// Fired the moment a drop is accepted (not once the async copy/import finishes) — used
+    /// by `ShelfWindowController` to re-peek the shelf after a file was dropped in while it
+    /// was auto-expanded from a peeked state to receive it.
+    func shelfDidCompleteDrop(_ controller: ShelfViewController)
 }
 
 final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSSharingServiceDelegate {
@@ -227,9 +231,7 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
     // MARK: - Drag destination (files coming IN)
 
     private func registerDragTypes(on view: NSView) {
-        var types: [NSPasteboard.PasteboardType] = [.fileURL]
-        types.append(contentsOf: NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
-        view.registerForDraggedTypes(types)
+        view.registerForDraggedTypes(ShelfDropView.incomingDragTypes)
     }
 
     func shelfDropView(_ view: ShelfDropView, performDrop pasteboard: NSPasteboard) -> Bool {
@@ -294,6 +296,7 @@ final class ShelfViewController: NSViewController, ShelfDropViewDelegate, NSShar
         // not at all when the whole drop turned out to be duplicates already in the shelf.
         if addedAny {
             NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
+            delegate?.shelfDidCompleteDrop(self)
         }
         // Returning false for an all-duplicates drop makes the dragged icon(s) snap back to
         // their origin — the standard AppKit "rejected" animation, on top of the flash on

@@ -164,6 +164,13 @@ shelf — files, the archive copies, all of it are exactly as they were when it'
 out. It's a purely visual hideaway, not a save/close; closing it for real still needs the
 "×" button, which isn't reachable while peeked (pull it back out first).
 
+You don't have to pull it back out by hand to add a file to it: dragging a file over the
+peeked tab expands the shelf back to full size on its own (same as clicking the tab would),
+so it's actually there to drop the file into. Drop it in and the shelf tucks itself back
+away a moment later, automatically — but only for that one drop; hover over the tab, then
+drag away without dropping, and the shelf just stays open as normal instead of hiding itself
+again on its own.
+
 ## Required permission
 
 For the app to see mouse movement while you're dragging a file **from another app**
