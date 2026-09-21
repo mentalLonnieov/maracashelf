@@ -5,7 +5,10 @@ import AppKit
 ///
 /// There's no room here for per-file selection like the expanded grid has, so pressing and
 /// dragging from *any* icon just drags every file at once — the collapsed state is a
-/// "grab the whole shelf" shortcut, not a picker.
+/// "grab the whole shelf" shortcut, not a picker. Pressing on the row's *background*
+/// (the gaps around and between the icons) is deliberately left alone instead — see
+/// `hitTest` — so the collapsed shelf can still be dragged to a screen edge to peek there,
+/// the same as the expanded one.
 final class CollapsedPreviewRow: NSView, NSDraggingSource {
     /// The panel's own drop-accepting view (`ShelfDropView`) — incoming drags are forwarded
     /// here rather than handled independently. `ShelfDropView` fully covers the panel
@@ -46,15 +49,26 @@ final class CollapsedPreviewRow: NSView, NSDraggingSource {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    // The icon images and the "+N" label are purely decorative — all interaction (both the
-    // outgoing "drag everything out" gesture and the incoming drop-forwarding below) is
-    // meant to belong to the row itself. Dragging-destination callbacks, unlike mouse
-    // events, are delivered to whichever exact view the point hit-tests to with no
-    // fallback to an ancestor, so without this override a drop landing squarely on an icon
-    // (rather than the gaps between them) would silently miss instead of reaching
-    // `dropForwardTarget`.
+    // Only claims points that actually land on one of the icon views (or the "+N" label) —
+    // NOT every point within the row's own bounds. Two things this has to reconcile:
+    //
+    // 1. Dragging-destination callbacks, unlike mouse events, are delivered to whichever
+    //    exact view a point hit-tests to with no fallback to an ancestor, so a drop landing
+    //    squarely on an icon (rather than the gaps between them) needs this view to still
+    //    claim it — the icons themselves aren't registered for any dragged types — or it
+    //    would silently miss instead of reaching `dropForwardTarget`.
+    // 2. But claiming the *background* gaps too (as an earlier version of this did) meant
+    //    mouseDown on them was also swallowed by this view's own "drag everything out"
+    //    handling below, which never defers to `isMovableByWindowBackground` — background
+    //    clicks fell through to it before, so the collapsed shelf couldn't be dragged to a
+    //    screen edge to peek at all, unlike its expanded form. Letting hitTest return nil
+    //    for those points instead lets them fall through the normal hit-test chain to
+    //    `chromeContent` underneath (itself already a registered drop target too, so
+    //    incoming drops on the gaps still work, just handled directly instead of forwarded)
+    //    and from there behave like clicking anywhere else in the shelf's chrome.
     override func hitTest(_ point: NSPoint) -> NSView? {
-        super.hitTest(point) == nil ? nil : self
+        guard let hit = super.hitTest(point) else { return nil }
+        return stack.arrangedSubviews.contains(hit) ? self : nil
     }
 
     func update(with items: [ShelfItem]) {

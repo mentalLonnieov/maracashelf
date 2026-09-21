@@ -365,7 +365,16 @@ of being fixed forever.
   file in the shelf at once (`CollapsedPreviewRow` implements `NSDraggingSource` directly,
   with manual `mouseDown`/`mouseDragged` tracking and a small movement threshold before the
   drag session actually starts, building one cascaded `NSDraggingItem` per file) — the
-  collapsed state is a "grab the whole shelf" shortcut rather than a picker.
+  collapsed state is a "grab the whole shelf" shortcut rather than a picker. Its `hitTest`
+  only actually claims points landing on one of the icons (or the "+N" label), not the
+  background gaps around/between them — an earlier version claimed the whole row so drops
+  landing anywhere on it would still reach `dropForwardTarget` (see its own doc comment),
+  but that also meant mouseDown on the *background* was swallowed by this view's own drag
+  handling, which never defers to `isMovableByWindowBackground` — so the collapsed shelf
+  couldn't be dragged to a screen edge to peek at all, unlike its expanded form. Letting
+  those background points fall through the hit-test chain to `chromeContent` underneath
+  (itself already a registered drop target, so incoming drops on the gaps still work, just
+  handled directly instead of forwarded) fixes that without touching the drag-out gesture.
 - The transition between the grid and the preview row is animated: both stay visible
   (`isHidden` is only reapplied in the `completionHandler`, once opacity has actually
   reached 0) and crossfade via `animator().alphaValue` inside the same `NSAnimationContext`
