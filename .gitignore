@@ -6,3 +6,7 @@
 # macOS
 .DS_Store
 *.zip
+
+# Local agent instructions
+/AGENTS.md
+/agent.md
