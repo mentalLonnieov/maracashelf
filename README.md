@@ -272,19 +272,27 @@ of being fixed forever.
   window: both use `KeyableBorderlessWindow` and *do* become key on purpose (stock controls
   like `NSSlider`/`NSPopUpButton` need real key status for their first click to register at
   all), unlike `ShelfPanel`, which never becomes key at all. Once one of them actually
-  became key, its rounded glass card showed a rectangular black highlight poking out past
-  its own rounded corners — a first guess (`collectionView.focusRingType = .none`, to rule
-  out the collection view drawing its own focus ring as first responder) turned out not to
-  be it, since the *same* thing happened in Settings, which has no collection view at all.
-  The real cause: both controllers built their glass panel as a *subview* of the window's
-  default `contentView` (`root.addSubview(glassPanel)`) rather than assigning it as the
-  content view directly, unlike `ShelfPanel`, whose rounded glass panel *is*
-  `ShelfViewController.view`, assigned straight to `panel.contentView`. That default content
-  view is a plain rectangular `NSView`, and its rectangle — not the visually rounded glass
-  merely sitting inside it — is what the WindowServer uses to draw the key-window highlight;
-  since it only actually became visible once these windows (deliberately) became key, it
-  went unnoticed until then. Assigning the glass panel as `window.contentView` directly,
-  matching `ShelfPanel`'s approach, fixed both.
+  became key, its rounded glass card showed a rectangular highlight poking out past its own
+  rounded corners. Several things were tried and ruled out first: `collectionView
+  .focusRingType = .none` (the collection view drawing its own focus ring as first
+  responder) didn't hold up, since the *same* thing happened in Settings, which has no
+  collection view at all; assigning the glass panel as `window.contentView` directly instead
+  of as a subview of the window's default one (matching `ShelfPanel`, whose rounded glass
+  panel *is* `ShelfViewController.view`) was a real, worthwhile structural fix but didn't
+  fully resolve the visible artifact; removing `.resizable` from their style mask (matching
+  `ShelfPanel`, which lost it for the window-tiling fix below) didn't either. Swapping the
+  Liquid Glass material for the older `NSVisualEffectView` reproduced the exact same shape of
+  artifact, just lighter instead of dark — which ruled out `NSGlassEffectView` itself and
+  pointed at something both materials share. The actual cause: the glass card's frame filled
+  the window's `contentView` bounds exactly, with zero margin, so the window's own literal
+  rectangular edge coincided exactly with the glass's rounded corners. The WindowServer draws
+  its key-window highlight along that literal rectangular edge regardless of what shape the
+  content inside clips itself to — with zero margin, that highlight showed through right at
+  the corners, where the rounded mask had already clipped the glass away. The fix: give the
+  window an actual (not just visual) plain `NSView` as its `contentView`, with the glass
+  panel added as a subview inset 2pt from its bounds on every side — a real transparent gap
+  wide enough that the WindowServer's highlight, drawn at the true window edge, now lands
+  fully outside the visible card instead of coinciding with it.
 - The "×" button on the panel itself deletes the whole session's temp folder and closes the
   panel. For a single file (say, the wrong one got dragged in), hovering over its preview
   reveals a small "×" badge in the corner — it removes only that file, leaving the rest and

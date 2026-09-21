@@ -18,7 +18,11 @@ final class ArchiveWindowController: NSWindowController {
     convenience init() {
         let window = KeyableBorderlessWindow(
             contentRect: NSRect(x: 0, y: 0, width: 270, height: 420),
-            styleMask: [.borderless, .resizable],
+            // No .resizable — there's no visible edge to drag anyway (borderless, no title
+            // bar; `minSize` below was already moot without one), and per ShelfPanel it's
+            // also what let macOS's window-tiling gesture and a stray key-window highlight
+            // rectangle apply to a window in the first place.
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
@@ -65,14 +69,17 @@ final class ArchiveWindowController: NSWindowController {
         // shelf's does during its collapse/expand animation.
         glassPanel.translatesAutoresizingMaskIntoConstraints = true
         glassPanel.autoresizingMask = [.width, .height]
-        glassPanel.frame = initialBounds
-        // Assigned directly as the window's own contentView (matching how ShelfPanel's
-        // rounded glass panel *is* its contentView) rather than added as a subview of the
-        // default one — see SettingsWindowController for why: the default content view's
-        // plain rectangular bounds, not our rounded glass sitting inside it, is what the
-        // WindowServer used to draw the key-window highlight once this window (deliberately
-        // key-able, unlike ShelfPanel) actually became key.
-        window.contentView = glassPanel
+        // See SettingsWindowController for the full explanation — inset 2pt from the
+        // window's own bounds so the WindowServer's key-window highlight (drawn along the
+        // window's literal rectangular edge) lands in fully transparent space instead of
+        // coinciding with the glass's own rounded corners. This is what actually fixes the
+        // corner-outline bug; three earlier attempts (focus ring, contentView identity,
+        // styleMask .resizable) did not.
+        glassPanel.frame = initialBounds.insetBy(dx: 2, dy: 2)
+        let backdrop = NSView(frame: initialBounds)
+        backdrop.autoresizingMask = [.width, .height]
+        backdrop.addSubview(glassPanel)
+        window.contentView = backdrop
 
         closeButton.target = self
         closeButton.action = #selector(closeTapped)

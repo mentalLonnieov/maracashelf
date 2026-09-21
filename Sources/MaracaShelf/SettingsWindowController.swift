@@ -41,7 +41,12 @@ final class SettingsWindowController: NSWindowController {
     convenience init() {
         let window = KeyableBorderlessWindow(
             contentRect: NSRect(x: 0, y: 0, width: 360, height: 520),
-            styleMask: [.borderless, .resizable],
+            // No .resizable — there's no visible edge to drag anyway (borderless, no
+            // title bar), and per ShelfPanel it's also what let macOS's window-tiling
+            // gesture and a stray key-window highlight rectangle apply to a window in the
+            // first place; removing it doesn't affect our own animated setFrame calls,
+            // which aren't gated by this style mask bit.
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
@@ -70,15 +75,21 @@ final class SettingsWindowController: NSWindowController {
         // Autoresizing, not Auto Layout — see GlassChrome.pin for why.
         glassPanel.translatesAutoresizingMaskIntoConstraints = true
         glassPanel.autoresizingMask = [.width, .height]
-        glassPanel.frame = initialBounds
-        // Assigned directly as the window's own contentView (matching how ShelfPanel's
-        // rounded glass panel *is* its contentView) rather than added as a subview of the
-        // default one. The default content view is a plain rectangular NSView, and that
-        // rectangle — not our visually rounded glass sitting inside it — is apparently what
-        // the WindowServer uses to draw the key-window highlight; since this window
-        // deliberately does become key (unlike ShelfPanel), that highlight was drawn around
-        // the full window frame and poked out past the rounded corners once it did.
-        window.contentView = glassPanel
+        // 2pt smaller than the window's own bounds on every side, instead of filling them
+        // exactly — this is what actually fixes the corner-outline bug (three earlier
+        // attempts, none of which touched this: focus ring, contentView identity, styleMask
+        // .resizable). The artifact is the WindowServer's own key-window highlight, drawn
+        // along the window's literal rectangular edge regardless of view/layer shape; with
+        // zero margin that edge coincided exactly with our rounded glass's own outer
+        // corners, so it showed through right where the corner mask had clipped the glass
+        // away. A 2pt transparent gap puts that edge safely outside the visible card. A
+        // plain `backdrop` view (not the glass panel itself) is the window's contentView so
+        // there's an actually-transparent area for that gap to sit in.
+        glassPanel.frame = initialBounds.insetBy(dx: 2, dy: 2)
+        let backdrop = NSView(frame: initialBounds)
+        backdrop.autoresizingMask = [.width, .height]
+        backdrop.addSubview(glassPanel)
+        window.contentView = backdrop
 
         closeButton.target = self
         closeButton.action = #selector(closeTapped)
