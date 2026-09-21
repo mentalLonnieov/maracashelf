@@ -14,12 +14,16 @@ final class ShelfWindowController: NSObject, ShelfViewControllerDelegate {
     private var isPeeked = false
     private var prePeekFrame: NSRect?
     private var mouseDownFrame: NSRect?
+    /// Which edge the shelf is currently peeked toward — needed by `exitPeek` to slide back
+    /// in from the same side it slid out through.
+    private var peekPointingRight = true
     private let peekEdgeThreshold: CGFloat = 40
     private let peekTabSize = NSSize(width: 40, height: 120)
     private lazy var peekTab: PeekTabView = {
         let tab = PeekTabView(frame: NSRect(origin: .zero, size: peekTabSize))
         tab.onActivate = { [weak self] in self?.exitPeek() }
         tab.onDragHover = { [weak self] in self?.handleDragHoverOnPeekTab() }
+        tab.onReposition = { [weak self] in self?.syncPrePeekFrameToCurrentTabPosition() }
         return tab
     }()
     // Armed right when a drag hovering over the peek tab expands the shelf back out, so a
@@ -144,6 +148,7 @@ final class ShelfWindowController: NSObject, ShelfViewControllerDelegate {
         // instead of back where it visually was.
         prePeekFrame = clamped(panel.frame, toVisibleFrameOf: screen)
         isPeeked = true
+        peekPointingRight = pointingRight
         peekTab.setDirection(pointingRight: pointingRight)
 
         let clampedY = max(screen.visibleFrame.minY + 8,
@@ -152,32 +157,62 @@ final class ShelfWindowController: NSObject, ShelfViewControllerDelegate {
         let x: CGFloat = pointingRight ? screen.frame.minX : screen.frame.maxX - peekTabSize.width
         let tabFrame = NSRect(x: x, y: clampedY, width: peekTabSize.width, height: peekTabSize.height)
 
-        // Cross-fades through fully transparent rather than animating the content swap or
-        // frame change directly. Swapping contentView first would briefly stretch the tiny
-        // tab to fill the still-large window (it tracks the window's current size via
-        // autoresizing); animating the frame shrink first would do the same lagging-content
-        // dance collapsedHeight was tuned to avoid, except worse (the grid/header content
-        // isn't built to shrink to 40pt wide at all). Swapping while invisible sidesteps
-        // both.
+        // A real two-part slide, not a fade: first the full-size panel slides (position
+        // only, same size — no layout to fight) past every display's combined bounds, so it
+        // visibly drives off the edge instead of just disappearing in place. Only once it's
+        // actually off-screen (and therefore invisible regardless of alpha) does the content
+        // swap to the tiny tab happen — swapping while still visible would briefly stretch
+        // the tab to fill the still-large window (it tracks the window's current size via
+        // autoresizing), and animating a live resize of the real content doesn't work either
+        // (the grid/header isn't built to shrink to 40pt wide at all). The tab then slides
+        // back in from that same off-screen position to its actual resting spot at the edge.
+        let farOffscreenX = self.offscreenX(pointingRight: pointingRight, width: panel.frame.width)
+        var slideAwayFrame = panel.frame
+        slideAwayFrame.origin.x = farOffscreenX
+
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.12
-            panel.animator().alphaValue = 0
+            ctx.duration = 0.22
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().setFrame(slideAwayFrame, display: true)
         }, completionHandler: { [weak self] in
             guard let self, let panel = self.panel else { return }
             panel.contentView = self.peekContentView
-            panel.setFrame(tabFrame, display: true)
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.15
-                panel.animator().alphaValue = 1
-            }
-            // Belt-and-suspenders re-assertion in case something (see the comment on the
-            // mouseUp handler above) still stomps on the frame shortly after this method
-            // returns — a cheap no-op if the size already stuck, a correction if it didn't.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                guard let self, self.isPeeked, let panel = self.panel, panel.frame.size != tabFrame.size else { return }
-                panel.setFrame(tabFrame, display: true)
-            }
+            var tabOffscreenFrame = tabFrame
+            tabOffscreenFrame.origin.x = self.offscreenX(pointingRight: pointingRight, width: tabFrame.width)
+            panel.setFrame(tabOffscreenFrame, display: true)
+            NSAnimationContext.runAnimationGroup({ ctx in
+                ctx.duration = 0.2
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().setFrame(tabFrame, display: true)
+            }, completionHandler: { [weak self] in
+                // Belt-and-suspenders re-assertion in case something (see the comment on the
+                // mouseUp handler above) still stomps on the frame shortly after this
+                // returns — a cheap no-op if the size already stuck, a correction if it didn't.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                    guard let self, self.isPeeked, let panel = self.panel, panel.frame != tabFrame else { return }
+                    panel.setFrame(tabFrame, display: true)
+                }
+            })
         })
+    }
+
+    /// An x-origin guaranteed to sit beyond every connected display, not just the one the
+    /// shelf happens to be on — sliding only past the current screen's own edge would leave
+    /// the panel plainly visible on an adjacent monitor placed directly next to it.
+    private func offscreenX(pointingRight: Bool, width: CGFloat) -> CGFloat {
+        let allScreens = NSScreen.screens.reduce(CGRect.null) { $0.union($1.frame) }
+        return pointingRight ? allScreens.minX - width : allScreens.maxX
+    }
+
+    /// Keeps `prePeekFrame` (where `exitPeek` restores the full-size shelf to) tracking the
+    /// tab's actual current position, rather than staying wherever it was captured back when
+    /// peeking first started — otherwise, dragging the tab up or down along the edge and then
+    /// restoring would snap the shelf back to its original vertical spot instead of one that
+    /// actually matches where the tab visually is now.
+    private func syncPrePeekFrameToCurrentTabPosition() {
+        guard isPeeked, let panel, var restore = prePeekFrame, let screen = panel.screen else { return }
+        restore.origin.y = panel.frame.midY - restore.height / 2
+        prePeekFrame = clamped(restore, toVisibleFrameOf: screen)
     }
 
     /// A file is being dragged toward the peek tab — expand the shelf back out so it can
@@ -192,21 +227,33 @@ final class ShelfWindowController: NSObject, ShelfViewControllerDelegate {
     }
 
     /// Restores the shelf to exactly where it was before peeking, via the same
-    /// fade-through-invisible swap `enterPeek` uses.
+    /// slide-through-off-screen swap `enterPeek` uses, mirrored: the tab slides out through
+    /// the edge it's resting against, then the full-size shelf slides back in from that same
+    /// off-screen position to where it was before peeking.
     private func exitPeek() {
         guard let panel, let restoreFrame = prePeekFrame else { return }
         isPeeked = false
         prePeekFrame = nil
+        let pointingRight = peekPointingRight
+        let tabFrame = panel.frame
+
+        var tabOffscreenFrame = tabFrame
+        tabOffscreenFrame.origin.x = offscreenX(pointingRight: pointingRight, width: tabFrame.width)
+
         NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.12
-            panel.animator().alphaValue = 0
+            ctx.duration = 0.18
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().setFrame(tabOffscreenFrame, display: true)
         }, completionHandler: { [weak self] in
             guard let self, let panel = self.panel, let viewController = self.viewController else { return }
             panel.contentView = viewController.view
-            panel.setFrame(restoreFrame, display: true)
+            var fullOffscreenFrame = restoreFrame
+            fullOffscreenFrame.origin.x = self.offscreenX(pointingRight: pointingRight, width: restoreFrame.width)
+            panel.setFrame(fullOffscreenFrame, display: true)
             NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.15
-                panel.animator().alphaValue = 1
+                ctx.duration = 0.22
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().setFrame(restoreFrame, display: true)
             }
         })
     }

@@ -157,12 +157,18 @@ in-app Uninstall action is the only way to remove both together.)
 ## Peeking to the edge
 
 Drag the shelf (by its background, not a button) to the left or right edge of the screen
-and let go — like Safari's Picture-in-Picture window, it slides away to a small tab with an
-arrow, out of the way but still there. Click the tab, or grab it and drag it back out,
-either one brings the shelf back exactly where it was. Peeking never touches what's in the
-shelf — files, the archive copies, all of it are exactly as they were when it's pulled back
-out. It's a purely visual hideaway, not a save/close; closing it for real still needs the
-"×" button, which isn't reachable while peeked (pull it back out first).
+and let go — like Safari's Picture-in-Picture window, it slides off through that edge down
+to a small tab with an arrow, out of the way but still there. Click the tab, or grab it and
+drag it away from the edge, either one slides the shelf back in exactly where it was. Peeking
+never touches what's in the shelf — files, the archive copies, all of it are exactly as they
+were when it's pulled back out. It's a purely visual hideaway, not a save/close; closing it
+for real still needs the "×" button, which isn't reachable while peeked (pull it back out
+first).
+
+The tab can also be dragged up or down along the edge to reposition it, without that being
+mistaken for "pull it out" — only a plain click, or a drag that actually moves away from the
+edge, brings the shelf back; a vertical-only drag just slides the tab to wherever you left
+it, and the shelf remembers that spot for next time it's pulled back out too.
 
 You don't have to pull it back out by hand to add a file to it: dragging a file over the
 peeked tab expands the shelf back to full size on its own (same as clicking the tab would),
@@ -416,18 +422,38 @@ of being fixed forever.
   deactivate a view's own Auto Layout constraints outside of `NSStackView`, and several of
   the normal content's children have hard minimums well over the 40pt tab width
   (`dropHintLabel`'s fixed 180pt width constraint, `countPill`'s intrinsic content size), so
-  they'd keep fighting a target frame that small. The `contentView` swap and the frame
-  change both happen while the panel is faded to fully transparent (a quick alpha animation
-  down, then up again) rather than being animated directly — animating the frame while
-  swapping to the tiny content would flash it stretched to the still-large window for a
-  frame first, and animating it while the normal content is still attached hits the same
-  "children reflow only once Auto Layout settles" lag `collapsedHeight` was tuned around,
-  except worse (that content was never built to fit 40pt wide at all). Peeking never touches
-  `ShelfStorage`/`ArchiveStorage` or the `items` array — it's purely a window position and
-  `contentView` swap, so everything already in the shelf is untouched regardless of how long
-  it stays peeked. `PeekTabView` overrides `mouseDown`/`mouseDragged` as no-ops and only acts
-  on `mouseUp`, deliberately not distinguishing a click from a drag — both should restore the
-  shelf, and by the time `mouseUp` fires it no longer matters which one happened.
+  they'd keep fighting a target frame that small. Entering/exiting peek is a real two-part
+  slide, not a fade: first the full-size panel slides (position only, same size — nothing
+  to reflow) past the combined bounds of *every* connected display, not just the one it's
+  on — sliding only past the current screen's own edge would leave it plainly visible on an
+  adjacent monitor placed directly next to it. Only once it's actually off-screen (and so
+  invisible regardless of content) does the `contentView` swap to `PeekTabView` happen —
+  swapping while still visible would flash the tiny tab stretched to fill the still-large
+  window first (it tracks the window's current size via autoresizing), and animating a live
+  resize of the normal content doesn't work either, for the same reason `collapsedHeight` is
+  a real measured minimum rather than an arbitrary small number (the grid/header isn't built
+  to shrink to 40pt wide at all). The tab then slides back in from that same off-screen
+  position to its actual resting spot at the edge. Exiting reverses the whole sequence.
+  Peeking never touches `ShelfStorage`/`ArchiveStorage` or the `items` array — it's purely a
+  window position and `contentView` swap, so everything already in the shelf is untouched
+  regardless of how long it stays peeked.
+- `PeekTabView` handles its own click/drag gestures directly rather than relying on
+  `isMovableByWindowBackground` (its `mouseDown`/`mouseDragged` deliberately never call
+  `super`, which is what actually keeps AppKit from starting its own window-background drag
+  and stealing the `mouseUp` before this view ever sees it). A plain click, or a drag that
+  moves far enough horizontally, restores the shelf; a drag that stays close to the edge
+  instead just slides the tab up or down along it — a real tab flush against a screen edge
+  has no room to be pulled outward without also drifting vertically somewhat, and that
+  shouldn't be misread as "pull it out". The horizontal/vertical distinction is made from
+  `NSEvent.mouseLocation` (absolute screen coordinates), not `event.locationInWindow` —
+  the latter is measured relative to the window's *current* frame, which this same code is
+  the one moving on every step of the drag; using it as the delta source fed back into that
+  same window's origin created a feedback loop where each move shrank how much of the
+  cursor's further travel still registered, making the tab lag further and further behind
+  the cursor as the drag continued. Repositioning the tab this way also updates
+  `prePeekFrame` (the frame `exitPeek` restores to) to match — otherwise restoring after a
+  reposition would snap the shelf back to its original vertical spot instead of one that
+  actually lines up with the tab's current position.
 - A reported bug had a fast/far drag to the edge leave the shelf peeked in *content* (the
   tab's chevron showing) but still full-size, instead of shrunk to the tab. It couldn't be
   reproduced by directly teleporting the panel to an overshot position and calling the same
